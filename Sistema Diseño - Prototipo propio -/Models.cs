@@ -59,6 +59,8 @@ namespace GestionEventos
         public string Tipo   { get; set; } = "";   // Alcohólica / Sin alcohol / Otra
 
         public override string ToString() =>
-            string.IsNullOrEmpty(Tipo) ? Nombre : $"{Nombre}  [{Tipo}]";
+            string.IsNullOrEmpty(Tipo) || string.Equals(Nombre, Tipo, StringComparison.OrdinalIgnoreCase)
+                ? Nombre
+                : $"{Nombre}  [{Tipo}]";
     }
 }

@@ -12,7 +12,7 @@ namespace GestionEventos
         private TextBox        txtNombre, txtTelefono, txtAlergias, txtGrupo, txtBuscar;
         private CheckBox       chkConfirmado;
         private NumericUpDown  nudAcompanantes;
-        private ListBox        lstInvitados;
+        private ListView       lstInvitados;
         private Button         btnAgregar, btnEditar, btnEliminar;
         private System.Windows.Forms.Timer _timerSync;
 
@@ -45,39 +45,49 @@ namespace GestionEventos
                     new SolidBrush(Color.FromArgb(215, 225, 245)),
                     0, pnlHeader.Height - 1, pnlHeader.Width, 1);
 
+            var headerRow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0, 18, 0, 0)
+            };
+
             var lblTitulo = new Label
             {
                 Text      = "👥   Invitados",
                 Font      = new Font("Segoe UI", 15, FontStyle.Bold),
                 ForeColor = Color.FromArgb(22, 38, 70),
-                Dock      = DockStyle.Left,
-                Width     = 220,
-                TextAlign = ContentAlignment.MiddleLeft
+                AutoSize  = true,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin    = new Padding(0, 0, 18, 0)
             };
 
             var lblEvLbl = new Label
             {
                 Text      = "Evento:",
-                Dock      = DockStyle.Left,
-                Width     = 68,
+                AutoSize  = true,
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(60, 75, 110),
-                TextAlign = ContentAlignment.MiddleRight
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin    = new Padding(12, 5, 8, 0)
             };
 
             cmbEventos = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Width         = 240,
+                Width         = 280,
                 Font          = new Font("Segoe UI", 10.5f),
-                Dock          = DockStyle.Left,
-                Margin        = new Padding(6, 0, 0, 0)
+                Margin        = new Padding(0, 2, 0, 0),
+                DropDownWidth = 420
             };
             cmbEventos.SelectedIndexChanged += CmbEventos_Changed;
 
-            pnlHeader.Controls.Add(cmbEventos);
-            pnlHeader.Controls.Add(lblEvLbl);
-            pnlHeader.Controls.Add(lblTitulo);
+            headerRow.Controls.Add(lblTitulo);
+            headerRow.Controls.Add(lblEvLbl);
+            headerRow.Controls.Add(cmbEventos);
+            pnlHeader.Controls.Add(headerRow);
 
             // ── Panel de campos ──────────────────────────────────────────────
             var pnlCampos = new Panel
@@ -135,7 +145,6 @@ namespace GestionEventos
                 ForeColor = Color.FromArgb(22, 148, 75),
                 Font      = new Font("Segoe UI", 10, FontStyle.Bold),
                 AutoSize  = true,
-                Location  = new Point(0, 18),
                 Cursor    = Cursors.Hand
             };
 
@@ -143,7 +152,6 @@ namespace GestionEventos
             {
                 Text      = "Acompañantes:",
                 AutoSize  = true,
-                Location  = new Point(165, 20),
                 Font      = new Font("Segoe UI", 10f),
                 ForeColor = Color.FromArgb(55, 65, 90)
             };
@@ -153,7 +161,6 @@ namespace GestionEventos
                 Minimum  = 0,
                 Maximum  = 30,
                 Width    = 72,
-                Location = new Point(297, 16),
                 Font     = new Font("Segoe UI", 10.5f)
             };
 
@@ -161,25 +168,44 @@ namespace GestionEventos
             btnEditar   = MakeBtn("Editar",   Color.FromArgb(28, 95, 180));
             btnEliminar = MakeBtn("Eliminar", Color.FromArgb(190, 40, 40));
 
-            btnAgregar.Location  = new Point(410, 14);
-            btnEditar.Location   = new Point(520, 14);
-            btnEliminar.Location = new Point(630, 14);
-
             btnAgregar.Click  += BtnAgregar_Click;
             btnEditar.Click   += BtnEditar_Click;
             btnEliminar.Click += BtnEliminar_Click;
 
-            pnlCtrl.Controls.AddRange(new Control[]
+            var flpCtrl = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0, 14, 0, 0)
+            };
+            chkConfirmado.Margin     = new Padding(0, 4, 18, 0);
+            lblAcomp.Margin          = new Padding(0, 7, 8, 0);
+            nudAcompanantes.Margin   = new Padding(0, 4, 18, 0);
+            btnAgregar.Margin        = new Padding(0, 2, 10, 0);
+            btnEditar.Margin         = new Padding(0, 2, 10, 0);
+            btnEliminar.Margin       = new Padding(0, 2, 0, 0);
+
+            flpCtrl.Controls.AddRange(new Control[]
             {
                 chkConfirmado, lblAcomp, nudAcompanantes,
                 btnAgregar, btnEditar, btnEliminar
             });
+            pnlCtrl.Controls.Add(flpCtrl);
 
             // ── Buscador + lista ─────────────────────────────────────────────
             var pnlLista = new Panel
             {
                 Dock    = DockStyle.Fill,
                 Padding = new Padding(20, 10, 20, 20)
+            };
+
+            var pnlBuscar = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 36,
+                BackColor = Color.Transparent
             };
 
             var lblBuscar = new Label
@@ -194,30 +220,50 @@ namespace GestionEventos
             txtBuscar = new TextBox
             {
                 Location    = new Point(68, 5),
-                Width       = 360,
                 Font        = new Font("Segoe UI", 10.5f),
                 BorderStyle = BorderStyle.FixedSingle
             };
             txtBuscar.TextChanged += (_, __) => FiltrarLista();
 
-            lstInvitados = new ListBox
+            pnlBuscar.Controls.Add(lblBuscar);
+            pnlBuscar.Controls.Add(txtBuscar);
+
+            var hdr = new TableLayoutPanel
             {
-                Location            = new Point(0, 40),
-                Font                = new Font("Segoe UI", 10.5f),
-                ScrollAlwaysVisible = true,
-                BorderStyle         = BorderStyle.FixedSingle
+                Dock        = DockStyle.Top,
+                Height      = 26,
+                ColumnCount = 4,
+                BackColor   = Color.FromArgb(245, 248, 255),
+                Padding     = new Padding(8, 2, 8, 2)
             };
+            hdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
+            hdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
+            hdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18));
+            hdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
+            hdr.Controls.Add(MakeHdr("Nombre"),    0, 0);
+            hdr.Controls.Add(MakeHdr("Teléfono"),  1, 0);
+            hdr.Controls.Add(MakeHdr("Alergias"),  2, 0);
+            hdr.Controls.Add(MakeHdr("Grupo"),     3, 0);
+
+            lstInvitados = new ListView
+            {
+                Dock       = DockStyle.Fill,
+                Font       = new Font("Segoe UI", 10.5f),
+                BorderStyle= BorderStyle.FixedSingle,
+                View       = View.Details,
+                FullRowSelect = true,
+                HideSelection = false
+            };
+            lstInvitados.Columns.Add("Nombre",   260);
+            lstInvitados.Columns.Add("Teléfono", 150);
+            lstInvitados.Columns.Add("Alergias", 90);
+            lstInvitados.Columns.Add("Grupo",    160);
             lstInvitados.SelectedIndexChanged += LstInvitados_Changed;
 
-            pnlLista.Controls.AddRange(
-                new Control[] { lblBuscar, txtBuscar, lstInvitados });
-            pnlLista.Resize += (_, __) =>
-            {
-                int w = pnlLista.ClientSize.Width - 40;
-                int h = pnlLista.ClientSize.Height - 55;
-                if (w > 0 && h > 0)
-                    lstInvitados.Size = new Size(w, h);
-            };
+            pnlLista.Controls.Add(lstInvitados);
+            pnlLista.Controls.Add(hdr);
+            pnlLista.Controls.Add(pnlBuscar);
+            pnlLista.Resize += (_, __) => AjustarLista();
 
             Controls.Add(pnlLista);
             Controls.Add(pnlCtrl);
@@ -260,6 +306,16 @@ namespace GestionEventos
             b.FlatAppearance.BorderSize = 0;
             return b;
         }
+
+        private static Label MakeHdr(string txt) =>
+            new Label
+            {
+                Text      = txt,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font      = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(60, 75, 110)
+            };
 
         // ─── Timer ─────────────────────────────────────────────────────────────
         private void IniciarTimer()
@@ -317,15 +373,28 @@ namespace GestionEventos
                 i.Nombre.ToLowerInvariant().Contains(filtro) ||
                 i.Grupo.ToLowerInvariant().Contains(filtro)))
             {
-                lstInvitados.Items.Add(inv);
+                var alergias = string.IsNullOrWhiteSpace(inv.Alergias) ||
+                               string.Equals(inv.Alergias.Trim(), "ninguna", StringComparison.OrdinalIgnoreCase)
+                    ? "No"
+                    : "Sí";
+                var item = new ListViewItem(inv.Nombre + (inv.Confirmado ? "  ✓" : ""))
+                {
+                    Tag = inv
+                };
+                item.SubItems.Add(inv.Telefono);
+                item.SubItems.Add(alergias);
+                item.SubItems.Add(inv.Grupo);
+                lstInvitados.Items.Add(item);
             }
+            AjustarLista();
         }
 
         private void FiltrarLista() => CargarLista();
 
         private void LstInvitados_Changed(object sender, EventArgs e)
         {
-            if (lstInvitados.SelectedItem is Invitado inv)
+            if (lstInvitados.SelectedItems.Count == 1 &&
+                lstInvitados.SelectedItems[0].Tag is Invitado inv)
             {
                 _idSeleccionado         = inv.Id;
                 txtNombre.Text          = inv.Nombre;
@@ -346,7 +415,7 @@ namespace GestionEventos
             txtGrupo.Text         = "";
             chkConfirmado.Checked = false;
             nudAcompanantes.Value = 0;
-            lstInvitados.ClearSelected();
+            lstInvitados.SelectedItems.Clear();
         }
 
         private Invitado LeerFormulario() => new Invitado
@@ -417,6 +486,20 @@ namespace GestionEventos
                 LimpiarFormulario();
                 CargarLista();
             }
+        }
+
+        private void AjustarLista()
+        {
+            if (txtBuscar == null || lstInvitados == null) return;
+            int w = Math.Max(0, (Parent?.ClientSize.Width ?? Width) - 420);
+            txtBuscar.Width = Math.Max(220, w);
+
+            int total = lstInvitados.ClientSize.Width;
+            if (total <= 0 || lstInvitados.Columns.Count != 4) return;
+            lstInvitados.Columns[0].Width = (int)(total * 0.38);
+            lstInvitados.Columns[1].Width = (int)(total * 0.22);
+            lstInvitados.Columns[2].Width = (int)(total * 0.18);
+            lstInvitados.Columns[3].Width = (int)(total * 0.22);
         }
     }
 }

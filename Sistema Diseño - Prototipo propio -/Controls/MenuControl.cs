@@ -93,7 +93,7 @@ namespace GestionEventos
 
         private static readonly string[] TiposBebida =
         {
-            "Alcohólica", "Sin alcohol", "Vino", "Cerveza", "Cóctel", "Refresco", "Agua", "Otra"
+            "Alcohólica", "Sin alcohol", "Vino", "Cerveza", "Cóctel", "Refresco", "Otra"
         };
 
         public MenuControl()
@@ -121,38 +121,49 @@ namespace GestionEventos
                     new SolidBrush(Color.FromArgb(215, 225, 245)),
                     0, pnlHeader.Height - 1, pnlHeader.Width, 1);
 
+            var headerRow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0, 18, 0, 0)
+            };
+
             var lblTitulo = new Label
             {
                 Text      = "🍴   Menú del Evento",
                 Font      = new Font("Segoe UI", 15, FontStyle.Bold),
                 ForeColor = Color.FromArgb(22, 38, 70),
-                Dock      = DockStyle.Left,
-                Width     = 300,
-                TextAlign = ContentAlignment.MiddleLeft
+                AutoSize  = true,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin    = new Padding(0, 0, 18, 0)
             };
 
             var lblEvLbl = new Label
             {
                 Text      = "Evento:",
-                Dock      = DockStyle.Left,
-                Width     = 68,
+                AutoSize  = true,
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(60, 75, 110),
-                TextAlign = ContentAlignment.MiddleRight
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin    = new Padding(12, 5, 8, 0)
             };
 
             cmbEventos = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Width         = 260,
+                Width         = 280,
                 Font          = new Font("Segoe UI", 10.5f),
-                Dock          = DockStyle.Left
+                Margin        = new Padding(0, 2, 0, 0),
+                DropDownWidth = 420
             };
             cmbEventos.SelectedIndexChanged += CmbEventos_Changed;
 
-            pnlHeader.Controls.Add(cmbEventos);
-            pnlHeader.Controls.Add(lblEvLbl);
-            pnlHeader.Controls.Add(lblTitulo);
+            headerRow.Controls.Add(lblTitulo);
+            headerRow.Controls.Add(lblEvLbl);
+            headerRow.Controls.Add(cmbEventos);
+            pnlHeader.Controls.Add(headerRow);
 
             // ── Cuerpo ───────────────────────────────────────────────────────
             // Dividido en dos columnas: platillos (izq) | bebidas (der)
@@ -184,20 +195,26 @@ namespace GestionEventos
 
             var sepB1 = new Panel { Dock = DockStyle.Top, Height = 6,  BackColor = Color.Transparent };
 
-            // Fila: nombre + tipo + botón agregar
-            var pnlAddBeb = new Panel
+            // Fila: nombre + tipo + botón agregar (sin recortes)
+            var pnlAddBeb = new TableLayoutPanel
             {
-                Dock      = DockStyle.Top,
-                Height    = 38,
-                BackColor = Color.Transparent
+                Dock        = DockStyle.Top,
+                Height      = 46,
+                ColumnCount = 3,
+                RowCount    = 1,
+                BackColor   = Color.Transparent
             };
+            pnlAddBeb.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            pnlAddBeb.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+            pnlAddBeb.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 42));
+            pnlAddBeb.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             txtNuevaBebida = new TextBox
             {
                 PlaceholderText = "Nombre de la bebida...",
                 Font            = new Font("Segoe UI", 9.5f),
-                Location        = new Point(0, 5),
-                Width           = 150,
+                Dock            = DockStyle.Fill,
+                Margin          = new Padding(0, 8, 6, 8),
                 BorderStyle     = BorderStyle.FixedSingle
             };
 
@@ -205,8 +222,9 @@ namespace GestionEventos
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font          = new Font("Segoe UI", 9.5f),
-                Location      = new Point(155, 5),
-                Width         = 95
+                Dock          = DockStyle.Fill,
+                Margin        = new Padding(0, 8, 6, 8),
+                DropDownWidth = 220
             };
             cmbTipoBebida.Items.AddRange(TiposBebida);
             cmbTipoBebida.SelectedIndex = 0;
@@ -214,19 +232,21 @@ namespace GestionEventos
             btnAgregarBebida = new Button
             {
                 Text      = "+",
-                Location  = new Point(255, 4),
-                Size      = new Size(36, 28),
+                Dock      = DockStyle.Fill,
                 BackColor = Color.FromArgb(18, 118, 55),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 13, FontStyle.Bold),
-                Cursor    = Cursors.Hand
+                Font      = new Font("Segoe UI", 11, FontStyle.Bold),
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 6, 0, 8),
+                TextAlign = ContentAlignment.MiddleCenter
             };
             btnAgregarBebida.FlatAppearance.BorderSize = 0;
             btnAgregarBebida.Click += BtnAgregarBebida_Click;
 
-            pnlAddBeb.Controls.AddRange(
-                new Control[] { txtNuevaBebida, cmbTipoBebida, btnAgregarBebida });
+            pnlAddBeb.Controls.Add(txtNuevaBebida, 0, 0);
+            pnlAddBeb.Controls.Add(cmbTipoBebida,  1, 0);
+            pnlAddBeb.Controls.Add(btnAgregarBebida, 2, 0);
 
             var sepB2 = new Panel { Dock = DockStyle.Top, Height = 6, BackColor = Color.Transparent };
 

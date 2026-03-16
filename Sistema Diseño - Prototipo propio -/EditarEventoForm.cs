@@ -22,8 +22,8 @@ namespace GestionEventos
 
         private void BuildUI()
         {
-            Text            = "Editar Evento";
-            Size            = new Size(430, 340);
+            Text            = "Gestión de Eventos";
+            Size            = new Size(430, 360);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition   = FormStartPosition.CenterParent;
             MaximizeBox     = false;
@@ -48,13 +48,13 @@ namespace GestionEventos
                 Padding   = new Padding(16, 0, 0, 0)
             });
 
-            // Campos
+            // Campos (centrados)
             var tlp = new TableLayoutPanel
             {
                 ColumnCount     = 2,
                 RowCount        = 3,
-                Location        = new Point(24, 70),
-                Size            = new Size(374, 162),
+                AutoSize        = true,
+                AutoSizeMode    = AutoSizeMode.GrowAndShrink,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 105));
@@ -94,17 +94,44 @@ namespace GestionEventos
             AddRow(tlp, 1, "Tipo:",   cmbTipo);
             AddRow(tlp, 2, "Fecha:",  dtpFecha);
 
-            // Botones
-            btnGuardar = MakeBtn("✔  Guardar",   Color.FromArgb(18, 30, 58),  new Point(158, 258));
-            btnCancelar= MakeBtn("✖  Cancelar",  Color.FromArgb(190, 45, 45), new Point(296, 258));
+            // Botones (centrados)
+            btnGuardar  = MakeBtn("✔  Guardar",  Color.FromArgb(18, 30, 58));
+            btnCancelar = MakeBtn("✖  Cancelar", Color.FromArgb(190, 45, 45));
 
             btnGuardar.Click  += BtnGuardar_Click;
             btnCancelar.Click += (_, __) => DialogResult = DialogResult.Cancel;
 
+            var pnlButtons = new FlowLayoutPanel
+            {
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
+                WrapContents  = false,
+                FlowDirection = FlowDirection.LeftToRight,
+                Margin        = new Padding(0, 12, 0, 0),
+                Padding       = new Padding(0)
+            };
+            btnGuardar.Margin  = new Padding(0, 0, 12, 0);
+            btnCancelar.Margin = new Padding(0);
+            pnlButtons.Controls.Add(btnGuardar);
+            pnlButtons.Controls.Add(btnCancelar);
+
+            var layout = new TableLayoutPanel
+            {
+                Dock        = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount    = 2,
+                Padding     = new Padding(24, 10, 24, 18)
+            };
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.Controls.Add(tlp,        1, 0);
+            layout.Controls.Add(pnlButtons, 1, 1);
+
+            Controls.Add(layout);
             Controls.Add(pnlHeader);
-            Controls.Add(tlp);
-            Controls.Add(btnGuardar);
-            Controls.Add(btnCancelar);
 
             AcceptButton = btnGuardar;
             CancelButton = btnCancelar;
@@ -124,13 +151,12 @@ namespace GestionEventos
             tlp.Controls.Add(ctrl, 1, row);
         }
 
-        private static Button MakeBtn(string txt, Color col, Point loc)
+        private static Button MakeBtn(string txt, Color col)
         {
             var b = new Button
             {
                 Text      = txt,
                 Size      = new Size(130, 40),
-                Location  = loc,
                 BackColor = col,
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,

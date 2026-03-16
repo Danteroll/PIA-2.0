@@ -48,38 +48,49 @@ namespace GestionEventos
                     new SolidBrush(Color.FromArgb(215, 225, 245)),
                     0, pnlHeader.Height - 1, pnlHeader.Width, 1);
 
+            var headerRow = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0, 18, 0, 0)
+            };
+
             var lblTitulo = new Label
             {
                 Text      = "🍽️   Mapa de Mesas",
                 Font      = new Font("Segoe UI", 15, FontStyle.Bold),
                 ForeColor = Color.FromArgb(22, 38, 70),
-                Dock      = DockStyle.Left,
-                Width     = 270,
-                TextAlign = ContentAlignment.MiddleLeft
+                AutoSize  = true,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin    = new Padding(0, 0, 18, 0)
             };
 
             var lblEvLbl = new Label
             {
                 Text      = "Evento:",
-                Dock      = DockStyle.Left,
-                Width     = 68,
+                AutoSize  = true,
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(60, 75, 110),
-                TextAlign = ContentAlignment.MiddleRight
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin    = new Padding(12, 5, 8, 0)
             };
 
             cmbEventos = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Width         = 240,
+                Width         = 280,
                 Font          = new Font("Segoe UI", 10.5f),
-                Dock          = DockStyle.Left
+                Margin        = new Padding(0, 2, 0, 0),
+                DropDownWidth = 420
             };
             cmbEventos.SelectedIndexChanged += CmbEventos_Changed;
 
-            pnlHeader.Controls.Add(cmbEventos);
-            pnlHeader.Controls.Add(lblEvLbl);
-            pnlHeader.Controls.Add(lblTitulo);
+            headerRow.Controls.Add(lblTitulo);
+            headerRow.Controls.Add(lblEvLbl);
+            headerRow.Controls.Add(cmbEventos);
+            pnlHeader.Controls.Add(headerRow);
 
             // ── Área principal (canvas + panel derecho) ──────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill };
