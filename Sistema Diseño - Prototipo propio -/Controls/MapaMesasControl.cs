@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -467,6 +468,8 @@ namespace GestionEventos
         private Point _dragScreenStart;
         private bool  _arrastrando;
 
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool Activa
         {
             get => _activa;
