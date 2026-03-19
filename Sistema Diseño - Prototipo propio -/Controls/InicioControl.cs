@@ -7,9 +7,9 @@ namespace GestionEventos
 {
     public class InicioControl : UserControl
     {
-        private FlowLayoutPanel            pnlEventos;
-        private Label                      lblVacio;
-        private System.Windows.Forms.Timer _timer;
+        private FlowLayoutPanel            pnlEventos = null!;
+        private Label                      lblVacio   = null!;
+        private System.Windows.Forms.Timer _timer     = null!;
 
         public InicioControl()
         {
@@ -18,13 +18,11 @@ namespace GestionEventos
             RefrescarEventos();
         }
 
-        // ─── UI ────────────────────────────────────────────────────────────────
         private void BuildUI()
         {
             BackColor = Color.FromArgb(235, 240, 250);
             Dock      = DockStyle.Fill;
 
-            // ── Barra superior ───────────────────────────────────────────────
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -57,7 +55,7 @@ namespace GestionEventos
                 Font      = new Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor    = Cursors.Hand
             };
-            btnNuevo.Location = new Point(0, 14); // se reposiciona en Resize
+            btnNuevo.Location = new Point(0, 14);
             btnNuevo.FlatAppearance.BorderSize = 0;
             btnNuevo.Click += BtnNuevo_Click;
 
@@ -68,15 +66,14 @@ namespace GestionEventos
             pnlHeader.Controls.Add(lblTitulo);
             pnlHeader.Controls.Add(btnNuevo);
 
-            // ── Área de tarjetas ─────────────────────────────────────────────
             pnlEventos = new FlowLayoutPanel
             {
-                Dock            = DockStyle.Fill,
-                AutoScroll      = true,
-                Padding         = new Padding(20, 24, 20, 20),
-                FlowDirection   = FlowDirection.LeftToRight,
-                WrapContents    = true,
-                BackColor       = Color.FromArgb(235, 240, 250)
+                Dock          = DockStyle.Fill,
+                AutoScroll    = true,
+                Padding       = new Padding(20, 24, 20, 20),
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = true,
+                BackColor     = Color.FromArgb(235, 240, 250)
             };
 
             lblVacio = new Label
@@ -95,25 +92,21 @@ namespace GestionEventos
             Controls.Add(pnlHeader);
         }
 
-        // ─── Timer ─────────────────────────────────────────────────────────────
         private void IniciarTimer()
         {
-            _timer = new System.Windows.Forms.Timer { Interval = 60_000 }; // 1 min
+            _timer = new System.Windows.Forms.Timer { Interval = 60_000 };
             _timer.Tick += (_, __) => RefrescarEventos();
             _timer.Start();
         }
 
-        // ─── Lógica ────────────────────────────────────────────────────────────
         public void RefrescarEventos()
         {
             if (InvokeRequired) { Invoke(new Action(RefrescarEventos)); return; }
 
-            // Quitar tarjetas antiguas
             var tarjetas = pnlEventos.Controls.OfType<EventoCard>().ToList();
             foreach (var t in tarjetas)
                 pnlEventos.Controls.Remove(t);
 
-            // Solo eventos futuros o de hoy
             var eventos = DatabaseManager.GetEventos()
                 .Where(e => !e.Pasado)
                 .OrderBy(e => e.Fecha)
@@ -130,22 +123,18 @@ namespace GestionEventos
             }
         }
 
-        private void BtnNuevo_Click(object sender, EventArgs e)
+        private void BtnNuevo_Click(object? sender, EventArgs e)
         {
-            using (var dlg = new NuevoEventoForm())
-            {
-                if (dlg.ShowDialog(this) == DialogResult.OK)
-                    RefrescarEventos();
-            }
+            using var dlg = new NuevoEventoForm();
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+                RefrescarEventos();
         }
 
         private void AbrirEdicion(Evento ev)
         {
-            using (var dlg = new EditarEventoForm(ev))
-            {
-                if (dlg.ShowDialog(this) == DialogResult.OK)
-                    RefrescarEventos();
-            }
+            using var dlg = new EditarEventoForm(ev);
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+                RefrescarEventos();
         }
     }
 }

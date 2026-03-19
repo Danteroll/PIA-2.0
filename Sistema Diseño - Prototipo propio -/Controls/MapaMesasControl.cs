@@ -12,15 +12,21 @@ namespace GestionEventos
     // ══════════════════════════════════════════════════════════════════════════
     public class MapaMesasControl : UserControl
     {
-        private ComboBox      cmbEventos;
-        private Panel         pnlCanvas;
-        private ListBox       lstInvitados;
-        private NumericUpDown nudCapacidad;
-        private Button        btnAgregarMesa, btnAsignar, btnQuitarAsig, btnEliminarMesa;
-        private System.Windows.Forms.Timer _timerSync;
+        // = null! silencia CS8618 — todos se asignan en BuildUI()
+        private ComboBox      cmbEventos      = null!;
+        private Panel         pnlCanvas       = null!;
+        private ListBox       lstInvitados    = null!;
+        private NumericUpDown nudCapacidad    = null!;
+        private Button        btnAgregarMesa  = null!;
+        private Button        btnAsignar      = null!;
+        private Button        btnQuitarAsig   = null!;
+        private Button        btnEliminarMesa = null!;
+        private System.Windows.Forms.Timer _timerSync = null!;
+       
 
-        private string           EventoActual => cmbEventos.SelectedItem?.ToString();
-        private MesaPanel        _mesaSel;
+        // _mesaSel es nullable por diseño
+        private string? EventoActual => cmbEventos.SelectedItem?.ToString();
+        private MesaPanel?       _mesaSel;
         private List<MesaPanel>  _paneles = new List<MesaPanel>();
 
         public MapaMesasControl()
@@ -92,7 +98,7 @@ namespace GestionEventos
             headerRow.Controls.Add(cmbEventos);
             pnlHeader.Controls.Add(headerRow);
 
-            // ── Área principal (canvas + panel derecho) ──────────────────────
+            // ── Área principal ────────────────────────────────────────────────
             var pnlMain = new Panel { Dock = DockStyle.Fill };
 
             // Panel derecho
@@ -105,8 +111,8 @@ namespace GestionEventos
             };
             pnlDerecho.Paint += (s, e) =>
             {
-                using (var pen = new Pen(Color.FromArgb(215, 225, 245)))
-                    e.Graphics.DrawLine(pen, 0, 0, 0, ((Panel)s).Height);
+                using var pen = new Pen(Color.FromArgb(215, 225, 245));
+                e.Graphics.DrawLine(pen, 0, 0, 0, ((Panel)s!).Height);
             };
 
             var lblListaTit = new Label
@@ -149,22 +155,33 @@ namespace GestionEventos
                 Font    = new Font("Segoe UI", 10.5f)
             };
 
-            btnAgregarMesa = MakeBtn("＋ Agregar Mesa",     Color.FromArgb(18, 30, 58));
-            btnAsignar     = MakeBtn("► Asignar a mesa",    Color.FromArgb(18, 120, 55));
-            btnQuitarAsig  = MakeBtn("◄ Quitar asignación", Color.FromArgb(180, 100, 18));
-            btnEliminarMesa= MakeBtn("🗑  Eliminar mesa",   Color.FromArgb(185, 40, 40));
+            btnAgregarMesa  = MakeBtn("＋ Agregar Mesa",     Color.FromArgb(18, 30, 58));
+            btnAsignar      = MakeBtn("► Asignar a mesa",    Color.FromArgb(18, 120, 55));
+            btnQuitarAsig   = MakeBtn("◄ Quitar asignación", Color.FromArgb(180, 100, 18));
+            btnEliminarMesa = MakeBtn("🗑  Eliminar mesa",   Color.FromArgb(185, 40, 40));
 
             btnAgregarMesa.Click  += BtnAgregarMesa_Click;
             btnAsignar.Click      += BtnAsignar_Click;
             btnQuitarAsig.Click   += BtnQuitarAsig_Click;
             btnEliminarMesa.Click += BtnEliminarMesa_Click;
 
+            // Botones Excel ────────────────────────────────────────────────────
+            var btnImportarMesas  = MakeBtn("📥 Importar Excel", Color.FromArgb(34, 120, 34));
+            var btnPlantillaMesas = MakeBtn("📄 Plantilla",      Color.FromArgb(70, 110, 170));
+            btnImportarMesas.Click  += BtnImportarMesas_Click;
+            btnPlantillaMesas.Click += BtnDescargarPlantillaMesas_Click;
+
             var sep2 = new Panel { Dock = DockStyle.Top, Height = 6,  BackColor = Color.Transparent };
             var sep3 = new Panel { Dock = DockStyle.Top, Height = 6,  BackColor = Color.Transparent };
             var sep4 = new Panel { Dock = DockStyle.Top, Height = 6,  BackColor = Color.Transparent };
             var sep5 = new Panel { Dock = DockStyle.Top, Height = 8,  BackColor = Color.Transparent };
+            var sep6 = new Panel { Dock = DockStyle.Top, Height = 6,  BackColor = Color.Transparent };
+            var sep7 = new Panel { Dock = DockStyle.Top, Height = 6,  BackColor = Color.Transparent };
 
-            // Apilar en orden inverso (DockStyle.Top va de arriba a abajo)
+            pnlDerecho.Controls.Add(btnPlantillaMesas);
+            pnlDerecho.Controls.Add(sep7);
+            pnlDerecho.Controls.Add(btnImportarMesas);
+            pnlDerecho.Controls.Add(sep6);
             pnlDerecho.Controls.Add(btnEliminarMesa);
             pnlDerecho.Controls.Add(sep4);
             pnlDerecho.Controls.Add(btnQuitarAsig);
@@ -182,8 +199,8 @@ namespace GestionEventos
             // Canvas
             pnlCanvas = new Panel
             {
-                Dock      = DockStyle.Fill,
-                BackColor = Color.FromArgb(225, 232, 248),
+                Dock       = DockStyle.Fill,
+                BackColor  = Color.FromArgb(225, 232, 248),
                 AutoScroll = true
             };
             pnlCanvas.Paint += PnlCanvas_Paint;
@@ -213,10 +230,9 @@ namespace GestionEventos
             return b;
         }
 
-        private void PnlCanvas_Paint(object sender, PaintEventArgs e)
+        private void PnlCanvas_Paint(object? sender, PaintEventArgs e)
         {
-            // Grid de fondo
-            var pen = new Pen(Color.FromArgb(210, 218, 238));
+            using var pen = new Pen(Color.FromArgb(210, 218, 238));
             for (int x = 0; x < pnlCanvas.Width; x += 30)
                 e.Graphics.DrawLine(pen, x, 0, x, pnlCanvas.Height);
             for (int y = 0; y < pnlCanvas.Height; y += 30)
@@ -234,13 +250,9 @@ namespace GestionEventos
         // ─── Lógica ────────────────────────────────────────────────────────────
         public void CargarEventos(bool silencioso = false)
         {
-            if (InvokeRequired)
-            {
-                Invoke(new Action(() => CargarEventos(silencioso)));
-                return;
-            }
+            if (InvokeRequired) { Invoke(new Action(() => CargarEventos(silencioso))); return; }
 
-            string prev = cmbEventos.SelectedItem?.ToString();
+            string? prev = cmbEventos.SelectedItem?.ToString();
             cmbEventos.SelectedIndexChanged -= CmbEventos_Changed;
             cmbEventos.Items.Clear();
 
@@ -256,9 +268,16 @@ namespace GestionEventos
                 cmbEventos.SelectedIndex = 0;
 
             cmbEventos.SelectedIndexChanged += CmbEventos_Changed;
+
+            // ── FIX: siempre recargar canvas e invitados al navegar a esta pestaña
+            if (!silencioso)
+            {
+                CargarCanvas();
+                CargarInvitados();
+            }
         }
 
-        private void CmbEventos_Changed(object sender, EventArgs e)
+        private void CmbEventos_Changed(object? sender, EventArgs e)
         {
             CargarCanvas();
             CargarInvitados();
@@ -284,8 +303,8 @@ namespace GestionEventos
         private MesaPanel CrearMesaPanel(Mesa mesa)
         {
             var mp = new MesaPanel(mesa);
-            mp.Location      = new Point(mesa.PosX, mesa.PosY);
-            mp.Seleccionado  += () => { SeleccionarMesa(mp); };
+            mp.Location       = new Point(mesa.PosX, mesa.PosY);
+            mp.Seleccionado  += () => SeleccionarMesa(mp);
             mp.PosicionCambio += (id, x, y) =>
             {
                 if (EventoActual != null)
@@ -301,22 +320,25 @@ namespace GestionEventos
             _mesaSel  = mp;
         }
 
+        // ── FIX sincronización: carga invitados desde BD cada vez ────────────
         private void CargarInvitados()
         {
             lstInvitados.Items.Clear();
             if (EventoActual == null) return;
 
+            // Obtener todos los invitados del evento frescos desde la BD
             var todos     = DatabaseManager.GetInvitados(EventoActual);
             var mesas     = DatabaseManager.GetMesas(EventoActual);
             var asignados = new HashSet<int>(
                 mesas.SelectMany(m => m.Invitados.Select(i => i.Id)));
 
+            // Mostrar solo los NO asignados a ninguna mesa
             foreach (var inv in todos.Where(i => !asignados.Contains(i.Id)))
                 lstInvitados.Items.Add(inv);
         }
 
-        // ─── Botones ───────────────────────────────────────────────────────────
-        private void BtnAgregarMesa_Click(object sender, EventArgs e)
+        // ─── Botones CRUD ──────────────────────────────────────────────────────
+        private void BtnAgregarMesa_Click(object? sender, EventArgs e)
         {
             if (EventoActual == null)
             {
@@ -348,7 +370,7 @@ namespace GestionEventos
             SeleccionarMesa(mp);
         }
 
-        private void BtnAsignar_Click(object sender, EventArgs e)
+        private void BtnAsignar_Click(object? sender, EventArgs e)
         {
             if (_mesaSel == null)
             {
@@ -356,7 +378,7 @@ namespace GestionEventos
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            if (!(lstInvitados.SelectedItem is Invitado inv))
+            if (lstInvitados.SelectedItem is not Invitado inv)
             {
                 MessageBox.Show("Selecciona un invitado de la lista.", "Aviso",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -372,11 +394,11 @@ namespace GestionEventos
                 return;
             }
 
-            DatabaseManager.AsignarInvitadoMesa(EventoActual, inv.Id, mesa.Id);
+            DatabaseManager.AsignarInvitadoMesa(EventoActual!, inv.Id, mesa.Id);
             RecargarYMantienerSel(mesa.Id);
         }
 
-        private void BtnQuitarAsig_Click(object sender, EventArgs e)
+        private void BtnQuitarAsig_Click(object? sender, EventArgs e)
         {
             if (_mesaSel == null)
             {
@@ -393,49 +415,47 @@ namespace GestionEventos
                 return;
             }
 
-            // Mini-diálogo para elegir quién se desasigna
-            using (var dlg = new Form
+            using var dlg = new Form
             {
                 Text            = "Quitar invitado de mesa",
                 Size            = new Size(300, 230),
                 StartPosition   = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox     = false
-            })
+            };
+
+            var lb = new ListBox { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 10f) };
+            foreach (var i in invsMesa) lb.Items.Add(i);
+
+            var btnOk = new Button
             {
-                var lb = new ListBox { Dock = DockStyle.Fill, Font = new Font("Segoe UI", 10f) };
-                foreach (var i in invsMesa) lb.Items.Add(i);
+                Text      = "Quitar",
+                Dock      = DockStyle.Bottom,
+                Height    = 38,
+                BackColor = Color.FromArgb(180, 100, 18),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font      = new Font("Segoe UI", 10, FontStyle.Bold)
+            };
+            btnOk.FlatAppearance.BorderSize = 0;
 
-                var btnOk = new Button
+            int mesaId = _mesaSel.Mesa.Id;
+            btnOk.Click += (_, __) =>
+            {
+                if (lb.SelectedItem is Invitado sel)
                 {
-                    Text      = "Quitar",
-                    Dock      = DockStyle.Bottom,
-                    Height    = 38,
-                    BackColor = Color.FromArgb(180, 100, 18),
-                    ForeColor = Color.White,
-                    FlatStyle = FlatStyle.Flat,
-                    Font      = new Font("Segoe UI", 10, FontStyle.Bold)
-                };
-                btnOk.FlatAppearance.BorderSize = 0;
+                    DatabaseManager.QuitarInvitadoMesa(EventoActual!, sel.Id);
+                    dlg.Close();
+                    RecargarYMantienerSel(mesaId);
+                }
+            };
 
-                int mesaId = _mesaSel.Mesa.Id;
-                btnOk.Click += (_, __) =>
-                {
-                    if (lb.SelectedItem is Invitado sel)
-                    {
-                        DatabaseManager.QuitarInvitadoMesa(EventoActual, sel.Id);
-                        dlg.Close();
-                        RecargarYMantienerSel(mesaId);
-                    }
-                };
-
-                dlg.Controls.Add(lb);
-                dlg.Controls.Add(btnOk);
-                dlg.ShowDialog(this);
-            }
+            dlg.Controls.Add(lb);
+            dlg.Controls.Add(btnOk);
+            dlg.ShowDialog(this);
         }
 
-        private void BtnEliminarMesa_Click(object sender, EventArgs e)
+        private void BtnEliminarMesa_Click(object? sender, EventArgs e)
         {
             if (_mesaSel == null)
             {
@@ -449,7 +469,7 @@ namespace GestionEventos
                 "Confirmar", MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                DatabaseManager.EliminarMesa(EventoActual, _mesaSel.Mesa.Id);
+                DatabaseManager.EliminarMesa(EventoActual!, _mesaSel.Mesa.Id);
                 CargarCanvas();
                 CargarInvitados();
             }
@@ -462,6 +482,141 @@ namespace GestionEventos
             var mp = _paneles.FirstOrDefault(p => p.Mesa.Id == mesaId);
             if (mp != null) SeleccionarMesa(mp);
         }
+
+        // ─── Botones Excel ─────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Verifica que haya invitados en el evento actual.
+        /// Retorna true si puede proceder; false (y muestra mensaje) si no.
+        /// </summary>
+        private bool VerificarInvitadosExisten()
+        {
+            if (EventoActual == null)
+            {
+                MessageBox.Show("Selecciona un evento primero.", "Aviso",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            var invitados = DatabaseManager.GetInvitados(EventoActual);
+            if (invitados.Count == 0)
+            {
+                MessageBox.Show(
+                    "No hay invitados registrados en este evento.\n\n" +
+                    "Debes agregar invitados primero (sección 👥 Invitados) " +
+                    "antes de poder usar la importación o plantilla de mesas.",
+                    "Sin invitados", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            return true;
+        }
+
+        private void BtnImportarMesas_Click(object? sender, EventArgs e)
+        {
+            if (!VerificarInvitadosExisten()) return;
+
+            using var dlg = new OpenFileDialog
+            {
+                Title  = "Seleccionar archivo Excel de Mesas",
+                Filter = "Excel (*.xlsx)|*.xlsx"
+            };
+            if (dlg.ShowDialog() != DialogResult.OK) return;
+
+            var (mesasLeidas, erroresLectura) = ExcelImporter.LeerMesasDeExcel(dlg.FileName);
+
+            if (mesasLeidas.Count == 0)
+            {
+                string msg = "No se encontraron mesas en el archivo.";
+                if (erroresLectura.Count > 0)
+                    msg += "\n\n" + string.Join("\n", erroresLectura);
+                MessageBox.Show(msg, "Sin datos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int mesasCreadas = 0, invAsignados = 0;
+            var erroresBD = new List<string>();
+
+            var mesasExistentes = DatabaseManager.GetMesas(EventoActual!)
+                .Select(m => m.Numero).ToHashSet();
+
+            var invitadosPorNombre = DatabaseManager.GetInvitados(EventoActual!)
+                .ToDictionary(i => i.Nombre.ToLowerInvariant(), i => i);
+
+            foreach (var (mesa, nombres) in mesasLeidas)
+            {
+                try
+                {
+                    if (mesasExistentes.Contains(mesa.Numero))
+                    { erroresBD.Add($"Mesa {mesa.Numero} ya existe → omitida."); continue; }
+
+                    int mesaId = DatabaseManager.AgregarMesa(
+                        EventoActual!, mesa.Capacidad, mesa.PosX, mesa.PosY);
+                    mesasExistentes.Add(mesa.Numero);
+                    mesasCreadas++;
+
+                    int asignadosEnEsta = 0;
+                    foreach (var nombre in nombres)
+                    {
+                        string key = nombre.ToLowerInvariant();
+                        if (!invitadosPorNombre.TryGetValue(key, out Invitado? inv))
+                        { erroresBD.Add($"Mesa {mesa.Numero}: '{nombre}' no encontrado."); continue; }
+                        if (asignadosEnEsta >= mesa.Capacidad)
+                        { erroresBD.Add($"Mesa {mesa.Numero}: capacidad llena, '{nombre}' no asignado."); continue; }
+
+                        DatabaseManager.AsignarInvitadoMesa(EventoActual!, inv.Id, mesaId);
+                        asignadosEnEsta++;
+                        invAsignados++;
+                    }
+                }
+                catch (Exception ex) { erroresBD.Add($"Mesa {mesa.Numero}: {ex.Message}"); }
+            }
+
+            // Refrescar inmediatamente
+            CargarCanvas();
+            CargarInvitados();
+
+            var todos = new List<string>(erroresLectura);
+            todos.AddRange(erroresBD);
+            string resumen = $"Importación completada.\n\n" +
+                             $"✔ Mesas creadas:       {mesasCreadas}\n" +
+                             $"✔ Invitados asignados: {invAsignados}\n" +
+                             $"⚠ Errores/omitidos:    {todos.Count}";
+            if (todos.Count > 0) resumen += "\n\nDetalles:\n• " + string.Join("\n• ", todos);
+            MessageBox.Show(resumen, "Importar Mesas", MessageBoxButtons.OK,
+                todos.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+        }
+
+        private void BtnDescargarPlantillaMesas_Click(object? sender, EventArgs e)
+        {
+            if (!VerificarInvitadosExisten()) return;
+
+            using var dlg = new SaveFileDialog
+            {
+                Title    = "Guardar plantilla de Mesas",
+                Filter   = "Excel (*.xlsx)|*.xlsx",
+                FileName = "Plantilla_Mesas.xlsx"
+            };
+            if (dlg.ShowDialog() != DialogResult.OK) return;
+
+            try
+            {
+                // Pasa los invitados reales del evento para el desplegable
+                var invitados = DatabaseManager.GetInvitados(EventoActual!);
+                ExcelImporter.GenerarPlantillaMesas(dlg.FileName, invitados);
+
+                MessageBox.Show(
+                    "Plantilla guardada con 2 hojas:\n\n" +
+                    "• Hoja 1 'Mesas':        NumeroMesa | Capacidad | PosX | PosY\n" +
+                    "• Hoja 2 'Asignaciones': NumeroMesa | NombreInvitado\n\n" +
+                    $"La columna 'NombreInvitado' incluye un desplegable\n" +
+                    $"con los {invitados.Count} invitados registrados en el evento.",
+                    "Plantilla lista", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se pudo guardar:\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
     }
 
 
@@ -471,10 +626,14 @@ namespace GestionEventos
     public class MesaPanel : Panel
     {
         public Mesa Mesa { get; }
-        public event Action               Seleccionado;
-        public event Action<int, int, int> PosicionCambio; // id, x, y
 
-        private Label _lblTitulo, _lblInvitados, _lblCapacidad;
+        // Eventos como nullable para silenciar CS8618
+        public event Action?               Seleccionado;
+        public event Action<int, int, int>? PosicionCambio;
+
+        private readonly Label _lblTitulo;
+        private readonly Label _lblInvitados;
+        private readonly Label _lblCapacidad;
         private bool  _activa;
         private Point _dragScreenStart;
         private bool  _arrastrando;
@@ -494,7 +653,6 @@ namespace GestionEventos
             BackColor = Color.White;
             Cursor    = Cursors.SizeAll;
 
-            // Cabecera
             _lblTitulo = new Label
             {
                 Text      = $"Mesa {mesa.Numero}",
@@ -506,7 +664,6 @@ namespace GestionEventos
                 TextAlign = ContentAlignment.MiddleCenter
             };
 
-            // Lista de invitados
             _lblInvitados = new Label
             {
                 Dock      = DockStyle.Fill,
@@ -516,7 +673,6 @@ namespace GestionEventos
                 TextAlign = ContentAlignment.TopLeft
             };
 
-            // Pie: capacidad
             _lblCapacidad = new Label
             {
                 Dock      = DockStyle.Bottom,
@@ -541,40 +697,31 @@ namespace GestionEventos
                 Mesa.Invitados.Count > 0
                     ? string.Join("\n", Mesa.Invitados.Select(i => "• " + i.Nombre))
                     : "(sin invitados)";
-            _lblCapacidad.Text =
-                $"{Mesa.Invitados.Count} / {Mesa.Capacidad}  personas";
+            _lblCapacidad.Text = $"{Mesa.Invitados.Count} / {Mesa.Capacidad}  personas";
         }
 
         private void ActualizarEstilo()
         {
             _lblTitulo.BackColor =
                 _activa ? Color.FromArgb(45, 90, 178) : Color.FromArgb(18, 30, 58);
-            using (var pen = new Pen(
-                _activa ? Color.FromArgb(45, 90, 178) : Color.FromArgb(195, 210, 235), 2f))
-            {
-                Invalidate();
-            }
+            Invalidate();
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            using (var pen = new Pen(
-                _activa ? Color.FromArgb(45, 90, 178) : Color.FromArgb(195, 210, 235), 2f))
-            {
-                e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
-            }
+            using var pen = new Pen(
+                _activa ? Color.FromArgb(45, 90, 178) : Color.FromArgb(195, 210, 235), 2f);
+            e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         }
 
-        // ─── Arrastre ──────────────────────────────────────────────────────
         private void ConfigurarArrastre()
         {
             AttachTo(this);
             foreach (Control c in Controls)
             {
                 AttachTo(c);
-                foreach (Control cc in c.Controls)
-                    AttachTo(cc);
+                foreach (Control cc in c.Controls) AttachTo(cc);
             }
         }
 
@@ -586,22 +733,19 @@ namespace GestionEventos
             c.Click     += OnChildClick;
         }
 
-        private void OnChildClick(object s, EventArgs e)
-        {
-            Seleccionado?.Invoke();
-        }
+        private void OnChildClick(object? s, EventArgs e)      => Seleccionado?.Invoke();
 
-        private void OnChildMouseDown(object s, MouseEventArgs e)
+        private void OnChildMouseDown(object? s, MouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left) return;
-            _arrastrando    = true;
-            _dragScreenStart = ((Control)s).PointToScreen(e.Location);
+            _arrastrando     = true;
+            _dragScreenStart = ((Control)s!).PointToScreen(e.Location);
         }
 
-        private void OnChildMouseMove(object s, MouseEventArgs e)
+        private void OnChildMouseMove(object? s, MouseEventArgs e)
         {
             if (!_arrastrando) return;
-            var screenNow = ((Control)s).PointToScreen(e.Location);
+            var screenNow = ((Control)s!).PointToScreen(e.Location);
             int dx = screenNow.X - _dragScreenStart.X;
             int dy = screenNow.Y - _dragScreenStart.Y;
             _dragScreenStart = screenNow;
@@ -614,7 +758,7 @@ namespace GestionEventos
             Location = new Point(nx, ny);
         }
 
-        private void OnChildMouseUp(object s, MouseEventArgs e)
+        private void OnChildMouseUp(object? s, MouseEventArgs e)
         {
             if (!_arrastrando) return;
             _arrastrando = false;

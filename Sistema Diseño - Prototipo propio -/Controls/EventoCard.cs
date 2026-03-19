@@ -6,10 +6,10 @@ namespace GestionEventos
 {
     public class EventoCard : Panel
     {
-        public  Evento  Evento { get; }
+        public Evento Evento { get; }
 
-        /// <summary>Se dispara cuando el usuario hace clic en "Editar".</summary>
-        public event Action<Evento> SolicitarEdicion;
+        // nullable: se suscribe externamente; puede ser null antes de la suscripción
+        public event Action<Evento>? SolicitarEdicion;
 
         private static readonly Color[] Colores =
         {
@@ -50,8 +50,8 @@ namespace GestionEventos
                 BackColor = baseColor
             };
 
-            int tipoIdx = Array.IndexOf(Tipos, Evento.Tipo);
-            string emoji = tipoIdx >= 0 ? Emojis[tipoIdx] : "🎉";
+            int tipoIdx   = Array.IndexOf(Tipos, Evento.Tipo);
+            string emoji  = tipoIdx >= 0 ? Emojis[tipoIdx] : "🎉";
 
             var lblEmoji = new Label
             {
@@ -94,12 +94,14 @@ namespace GestionEventos
             };
 
             int dias = (Evento.Fecha.Date - DateTime.Today).Days;
-            string diasStr = dias > 0  ? $"⏳ En {dias} día{(dias == 1 ? "" : "s")}" :
-                             dias == 0 ? "🎉 ¡Es hoy!" :
-                                         $"✔ Hace {-dias} día{(-dias == 1 ? "" : "s")}";
-            Color diasColor = dias > 0  ? Color.FromArgb(20, 130, 60) :
-                              dias == 0 ? Color.FromArgb(180, 60, 20) :
-                                          Color.FromArgb(120, 130, 150);
+            string diasStr =
+                dias > 0  ? $"⏳ En {dias} día{(dias == 1 ? "" : "s")}" :
+                dias == 0 ? "🎉 ¡Es hoy!" :
+                            $"✔ Hace {-dias} día{(-dias == 1 ? "" : "s")}";
+            Color diasColor =
+                dias > 0  ? Color.FromArgb(20, 130, 60) :
+                dias == 0 ? Color.FromArgb(180, 60, 20) :
+                            Color.FromArgb(120, 130, 150);
 
             var lblDias = new Label
             {
@@ -111,7 +113,6 @@ namespace GestionEventos
                 BackColor = Color.Transparent
             };
 
-            // ── Botón Editar ────────────────────────────────────────────────
             var btnEditar = new Button
             {
                 Text      = "✏️  Editar evento",
@@ -128,8 +129,8 @@ namespace GestionEventos
 
             Paint += (s, e) =>
             {
-                using (var pen = new Pen(Color.FromArgb(210, 220, 235), 1.5f))
-                    e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+                using var pen = new Pen(Color.FromArgb(210, 220, 235), 1.5f);
+                e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
             };
 
             Controls.AddRange(new Control[]

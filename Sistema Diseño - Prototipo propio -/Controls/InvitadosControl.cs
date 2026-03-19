@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -7,17 +8,22 @@ namespace GestionEventos
 {
     public class InvitadosControl : UserControl
     {
-        // ── Controles ────────────────────────────────────────────────────────
-        private ComboBox       cmbEventos;
-        private TextBox        txtNombre, txtTelefono, txtAlergias, txtGrupo, txtBuscar;
-        private CheckBox       chkConfirmado;
-        private NumericUpDown  nudAcompanantes;
-        private ListView       lstInvitados;
-        private Button         btnAgregar, btnEditar, btnEliminar;
-        private System.Windows.Forms.Timer _timerSync;
+        // ── Controles (= null! silencia CS8618 — se asignan en BuildUI) ──────
+        private ComboBox      cmbEventos      = null!;
+        private TextBox       txtNombre       = null!;
+        private TextBox       txtTelefono     = null!;
+        private TextBox       txtAlergias     = null!;
+        private TextBox       txtGrupo        = null!;
+        private TextBox       txtBuscar       = null!;
+        private CheckBox      chkConfirmado   = null!;
+        private NumericUpDown nudAcompanantes = null!;
+        private ListView      lstInvitados    = null!;
+        private Button        btnAgregar      = null!;
+        private Button        btnEditar       = null!;
+        private Button        btnEliminar     = null!;
+        private System.Windows.Forms.Timer _timerSync = null!;
 
-        private string EventoActual =>
-            cmbEventos.SelectedItem?.ToString();
+        private string? EventoActual => cmbEventos.SelectedItem?.ToString();
         private int _idSeleccionado = -1;
 
         public InvitadosControl()
@@ -90,33 +96,41 @@ namespace GestionEventos
             pnlHeader.Controls.Add(headerRow);
 
             // ── Panel de campos ──────────────────────────────────────────────
+            // FIX: AutoSize + MinimumSize en vez de Height fijo para que no se
+            // recorten las labels en ventanas pequeñas.
             var pnlCampos = new Panel
             {
-                Dock      = DockStyle.Top,
-                Height    = 145,
-                BackColor = Color.White,
-                Padding   = new Padding(20, 14, 20, 10)
+                Dock        = DockStyle.Top,
+                MinimumSize = new Size(0, 120),   // garantiza alto mínimo visible
+                AutoSize    = true,
+                AutoSizeMode= AutoSizeMode.GrowAndShrink,
+                BackColor   = Color.White,
+                Padding     = new Padding(20, 14, 20, 10)
             };
             pnlCampos.Paint += (s, e) =>
             {
-                using (var pen = new Pen(Color.FromArgb(218, 226, 240)))
-                    e.Graphics.DrawRectangle(pen, 0, 0,
-                        ((Panel)s).Width - 1, ((Panel)s).Height - 1);
+                using var pen = new Pen(Color.FromArgb(218, 226, 240));
+                e.Graphics.DrawRectangle(pen, 0, 0,
+                    ((Panel)s!).Width - 1, ((Panel)s!).Height - 1);
             };
 
+            // FIX: el TableLayoutPanel de campos usa Anchor en vez de Dock
+            // para que el alto no dependa del panel padre y las labels
+            // tengan espacio suficiente siempre.
             var tlp = new TableLayoutPanel
             {
                 ColumnCount     = 4,
                 RowCount        = 2,
-                Dock            = DockStyle.Fill,
+                Dock            = DockStyle.Top,
+                Height          = 100,              // alto fijo suficiente para 2 filas
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 95));
-            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50));
             tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 95));
-            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
-            tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  50));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+            tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
 
             txtNombre   = MakeTxt();
             txtTelefono = MakeTxt();
@@ -130,7 +144,9 @@ namespace GestionEventos
 
             pnlCampos.Controls.Add(tlp);
 
-            // ── Panel controles (checkboxes, botones) ─────────────────────
+            // ── Panel controles ──────────────────────────────────────────────
+            // FIX: WrapContents = true para que los botones bajen de línea
+            // en vez de salirse del panel en ventanas estrechas.
             var pnlCtrl = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -158,10 +174,10 @@ namespace GestionEventos
 
             nudAcompanantes = new NumericUpDown
             {
-                Minimum  = 0,
-                Maximum  = 30,
-                Width    = 72,
-                Font     = new Font("Segoe UI", 10.5f)
+                Minimum = 0,
+                Maximum = 30,
+                Width   = 72,
+                Font    = new Font("Segoe UI", 10.5f)
             };
 
             btnAgregar  = MakeBtn("Agregar",  Color.FromArgb(18, 118, 55));
@@ -172,25 +188,33 @@ namespace GestionEventos
             btnEditar.Click   += BtnEditar_Click;
             btnEliminar.Click += BtnEliminar_Click;
 
+            var btnImportar  = MakeBtn("📥 Importar Excel", Color.FromArgb(34, 120, 34));
+            var btnPlantilla = MakeBtn("📄 Plantilla",      Color.FromArgb(70, 110, 170));
+            btnImportar.Click  += BtnImportarExcel_Click;
+            btnPlantilla.Click += BtnDescargarPlantilla_Click;
+
             var flpCtrl = new FlowLayoutPanel
             {
                 Dock          = DockStyle.Fill,
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents  = false,
+                WrapContents  = true,               // FIX: permite wrap en pantallas pequeñas
                 BackColor     = Color.Transparent,
                 Padding       = new Padding(0, 14, 0, 0)
             };
-            chkConfirmado.Margin     = new Padding(0, 4, 18, 0);
-            lblAcomp.Margin          = new Padding(0, 7, 8, 0);
-            nudAcompanantes.Margin   = new Padding(0, 4, 18, 0);
-            btnAgregar.Margin        = new Padding(0, 2, 10, 0);
-            btnEditar.Margin         = new Padding(0, 2, 10, 0);
-            btnEliminar.Margin       = new Padding(0, 2, 0, 0);
+            chkConfirmado.Margin   = new Padding(0, 4, 18, 0);
+            lblAcomp.Margin        = new Padding(0, 7, 8, 0);
+            nudAcompanantes.Margin = new Padding(0, 4, 18, 0);
+            btnAgregar.Margin      = new Padding(0, 2, 10, 0);
+            btnEditar.Margin       = new Padding(0, 2, 10, 0);
+            btnEliminar.Margin     = new Padding(0, 2, 0, 0);
+            btnImportar.Margin     = new Padding(14, 2, 10, 0);
+            btnPlantilla.Margin    = new Padding(0, 2, 0, 0);
 
             flpCtrl.Controls.AddRange(new Control[]
             {
                 chkConfirmado, lblAcomp, nudAcompanantes,
-                btnAgregar, btnEditar, btnEliminar
+                btnAgregar, btnEditar, btnEliminar,
+                btnImportar, btnPlantilla
             });
             pnlCtrl.Controls.Add(flpCtrl);
 
@@ -201,34 +225,60 @@ namespace GestionEventos
                 Padding = new Padding(20, 10, 20, 20)
             };
 
+            // FIX: pnlBuscar usa layout relativo con un FlowLayoutPanel
+            // para que lblBuscar y txtBuscar se distribuyan correctamente
+            // sin depender de coordenadas absolutas.
             var pnlBuscar = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 36,
+                Height    = 38,
                 BackColor = Color.Transparent
+            };
+
+            var flpBuscar = new FlowLayoutPanel
+            {
+                Dock          = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0, 4, 0, 0)
             };
 
             var lblBuscar = new Label
             {
                 Text      = "Buscar:",
-                AutoSize  = true,
-                Location  = new Point(0, 8),
+                AutoSize  = false,
+                Width     = 62,
+                Height    = 28,
                 Font      = new Font("Segoe UI", 10f),
-                ForeColor = Color.FromArgb(60, 75, 110)
+                ForeColor = Color.FromArgb(60, 75, 110),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin    = new Padding(0, 0, 6, 0)
             };
 
             txtBuscar = new TextBox
             {
-                Location    = new Point(68, 5),
+                // FIX: Anchor + height en vez de Location absoluta
+                Width       = 280,
+                Height      = 26,
                 Font        = new Font("Segoe UI", 10.5f),
-                BorderStyle = BorderStyle.FixedSingle
+                BorderStyle = BorderStyle.FixedSingle,
+                Margin      = new Padding(0, 0, 0, 0)
             };
             txtBuscar.TextChanged += (_, __) => FiltrarLista();
 
-            pnlBuscar.Controls.Add(lblBuscar);
-            pnlBuscar.Controls.Add(txtBuscar);
+            // Ajustar ancho de txtBuscar al redimensionar
+            pnlBuscar.Resize += (_, __) =>
+            {
+                int w = pnlBuscar.Width - lblBuscar.Width - 20;
+                txtBuscar.Width = Math.Max(120, w);
+            };
 
-            var hdr = new TableLayoutPanel
+            flpBuscar.Controls.Add(lblBuscar);
+            flpBuscar.Controls.Add(txtBuscar);
+            pnlBuscar.Controls.Add(flpBuscar);
+
+            var hdrRow = new TableLayoutPanel
             {
                 Dock        = DockStyle.Top,
                 Height      = 26,
@@ -236,21 +286,21 @@ namespace GestionEventos
                 BackColor   = Color.FromArgb(245, 248, 255),
                 Padding     = new Padding(8, 2, 8, 2)
             };
-            hdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
-            hdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
-            hdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18));
-            hdr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
-            hdr.Controls.Add(MakeHdr("Nombre"),    0, 0);
-            hdr.Controls.Add(MakeHdr("Teléfono"),  1, 0);
-            hdr.Controls.Add(MakeHdr("Alergias"),  2, 0);
-            hdr.Controls.Add(MakeHdr("Grupo"),     3, 0);
+            hdrRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
+            hdrRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
+            hdrRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18));
+            hdrRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
+            hdrRow.Controls.Add(MakeHdr("Nombre"),   0, 0);
+            hdrRow.Controls.Add(MakeHdr("Teléfono"), 1, 0);
+            hdrRow.Controls.Add(MakeHdr("Alergias"), 2, 0);
+            hdrRow.Controls.Add(MakeHdr("Grupo"),    3, 0);
 
             lstInvitados = new ListView
             {
-                Dock       = DockStyle.Fill,
-                Font       = new Font("Segoe UI", 10.5f),
-                BorderStyle= BorderStyle.FixedSingle,
-                View       = View.Details,
+                Dock          = DockStyle.Fill,
+                Font          = new Font("Segoe UI", 10.5f),
+                BorderStyle   = BorderStyle.FixedSingle,
+                View          = View.Details,
                 FullRowSelect = true,
                 HideSelection = false
             };
@@ -261,7 +311,7 @@ namespace GestionEventos
             lstInvitados.SelectedIndexChanged += LstInvitados_Changed;
 
             pnlLista.Controls.Add(lstInvitados);
-            pnlLista.Controls.Add(hdr);
+            pnlLista.Controls.Add(hdrRow);
             pnlLista.Controls.Add(pnlBuscar);
             pnlLista.Resize += (_, __) => AjustarLista();
 
@@ -277,7 +327,7 @@ namespace GestionEventos
             {
                 Dock        = DockStyle.Fill,
                 Font        = new Font("Segoe UI", 10.5f),
-                Margin      = new Padding(3),
+                Margin      = new Padding(3, 8, 3, 3),   // FIX: margen superior para centrar
                 BorderStyle = BorderStyle.FixedSingle
             };
 
@@ -288,7 +338,10 @@ namespace GestionEventos
                 TextAlign = ContentAlignment.MiddleRight,
                 Dock      = DockStyle.Fill,
                 Font      = new Font("Segoe UI", 10f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(55, 65, 90)
+                ForeColor = Color.FromArgb(55, 65, 90),
+                // FIX: AutoSize false + Dock Fill garantiza que el texto
+                // se vea completo con el ":" en la misma línea.
+                AutoSize  = false
             };
 
         private static Button MakeBtn(string txt, Color col)
@@ -328,13 +381,9 @@ namespace GestionEventos
         // ─── Lógica ────────────────────────────────────────────────────────────
         public void CargarEventos(bool silencioso = false)
         {
-            if (InvokeRequired)
-            {
-                Invoke(new Action(() => CargarEventos(silencioso)));
-                return;
-            }
+            if (InvokeRequired) { Invoke(new Action(() => CargarEventos(silencioso))); return; }
 
-            string prev = cmbEventos.SelectedItem?.ToString();
+            string? prev = cmbEventos.SelectedItem?.ToString();
             cmbEventos.SelectedIndexChanged -= CmbEventos_Changed;
             cmbEventos.Items.Clear();
 
@@ -350,11 +399,10 @@ namespace GestionEventos
                 cmbEventos.SelectedIndex = 0;
 
             cmbEventos.SelectedIndexChanged += CmbEventos_Changed;
-
             if (!silencioso) CargarLista();
         }
 
-        private void CmbEventos_Changed(object sender, EventArgs e)
+        private void CmbEventos_Changed(object? sender, EventArgs e)
         {
             LimpiarFormulario();
             CargarLista();
@@ -373,14 +421,13 @@ namespace GestionEventos
                 i.Nombre.ToLowerInvariant().Contains(filtro) ||
                 i.Grupo.ToLowerInvariant().Contains(filtro)))
             {
-                var alergias = string.IsNullOrWhiteSpace(inv.Alergias) ||
-                               string.Equals(inv.Alergias.Trim(), "ninguna", StringComparison.OrdinalIgnoreCase)
-                    ? "No"
-                    : "Sí";
+                string alergias =
+                    string.IsNullOrWhiteSpace(inv.Alergias) ||
+                    string.Equals(inv.Alergias.Trim(), "ninguna", StringComparison.OrdinalIgnoreCase)
+                        ? "No" : "Sí";
+
                 var item = new ListViewItem(inv.Nombre + (inv.Confirmado ? "  ✓" : ""))
-                {
-                    Tag = inv
-                };
+                    { Tag = inv };
                 item.SubItems.Add(inv.Telefono);
                 item.SubItems.Add(alergias);
                 item.SubItems.Add(inv.Grupo);
@@ -391,18 +438,18 @@ namespace GestionEventos
 
         private void FiltrarLista() => CargarLista();
 
-        private void LstInvitados_Changed(object sender, EventArgs e)
+        private void LstInvitados_Changed(object? sender, EventArgs e)
         {
             if (lstInvitados.SelectedItems.Count == 1 &&
                 lstInvitados.SelectedItems[0].Tag is Invitado inv)
             {
-                _idSeleccionado         = inv.Id;
-                txtNombre.Text          = inv.Nombre;
-                txtTelefono.Text        = inv.Telefono;
-                txtAlergias.Text        = inv.Alergias;
-                txtGrupo.Text           = inv.Grupo;
-                chkConfirmado.Checked   = inv.Confirmado;
-                nudAcompanantes.Value   = inv.Acompanantes;
+                _idSeleccionado       = inv.Id;
+                txtNombre.Text        = inv.Nombre;
+                txtTelefono.Text      = inv.Telefono;
+                txtAlergias.Text      = inv.Alergias;
+                txtGrupo.Text         = inv.Grupo;
+                chkConfirmado.Checked = inv.Confirmado;
+                nudAcompanantes.Value = inv.Acompanantes;
             }
         }
 
@@ -429,7 +476,7 @@ namespace GestionEventos
         };
 
         // ─── Botones CRUD ──────────────────────────────────────────────────────
-        private void BtnAgregar_Click(object sender, EventArgs e)
+        private void BtnAgregar_Click(object? sender, EventArgs e)
         {
             if (EventoActual == null)
             {
@@ -443,13 +490,12 @@ namespace GestionEventos
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
             DatabaseManager.AgregarInvitado(EventoActual, LeerFormulario());
             LimpiarFormulario();
             CargarLista();
         }
 
-        private void BtnEditar_Click(object sender, EventArgs e)
+        private void BtnEditar_Click(object? sender, EventArgs e)
         {
             if (_idSeleccionado < 0)
             {
@@ -463,14 +509,13 @@ namespace GestionEventos
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
             var inv = LeerFormulario();
             inv.Id = _idSeleccionado;
-            DatabaseManager.EditarInvitado(EventoActual, inv);
+            DatabaseManager.EditarInvitado(EventoActual!, inv);
             CargarLista();
         }
 
-        private void BtnEliminar_Click(object sender, EventArgs e)
+        private void BtnEliminar_Click(object? sender, EventArgs e)
         {
             if (_idSeleccionado < 0)
             {
@@ -478,21 +523,106 @@ namespace GestionEventos
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
             if (MessageBox.Show("¿Eliminar este invitado?", "Confirmar eliminación",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                DatabaseManager.EliminarInvitado(EventoActual, _idSeleccionado);
+                DatabaseManager.EliminarInvitado(EventoActual!, _idSeleccionado);
                 LimpiarFormulario();
                 CargarLista();
             }
         }
 
+        // ─── Botones Excel ─────────────────────────────────────────────────────
+        private void BtnImportarExcel_Click(object? sender, EventArgs e)
+        {
+            if (EventoActual == null)
+            {
+                MessageBox.Show("Selecciona un evento primero.", "Aviso",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using var dlg = new OpenFileDialog
+            {
+                Title  = "Seleccionar archivo Excel de Invitados",
+                Filter = "Excel (*.xlsx)|*.xlsx"
+            };
+            if (dlg.ShowDialog() != DialogResult.OK) return;
+
+            var (invitados, erroresLectura) = ExcelImporter.LeerInvitadosDeExcel(dlg.FileName);
+
+            if (invitados.Count == 0)
+            {
+                string msg = "No se encontraron invitados en el archivo.";
+                if (erroresLectura.Count > 0)
+                    msg += "\n\n" + string.Join("\n", erroresLectura);
+                MessageBox.Show(msg, "Sin datos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int guardados = 0, omitidos = 0;
+            var erroresBD = new List<string>();
+
+            var existentes = DatabaseManager.GetInvitados(EventoActual)
+                .Select(i => i.Nombre.ToLowerInvariant())
+                .ToHashSet();
+
+            foreach (var inv in invitados)
+            {
+                try
+                {
+                    if (existentes.Contains(inv.Nombre.ToLowerInvariant()))
+                    { omitidos++; erroresBD.Add($"'{inv.Nombre}' ya existe → omitido."); continue; }
+
+                    DatabaseManager.AgregarInvitado(EventoActual, inv);
+                    existentes.Add(inv.Nombre.ToLowerInvariant());
+                    guardados++;
+                }
+                catch (Exception ex)
+                { omitidos++; erroresBD.Add($"'{inv.Nombre}': {ex.Message}"); }
+            }
+
+            CargarLista();
+
+            var todos = new List<string>(erroresLectura);
+            todos.AddRange(erroresBD);
+            string resumen = $"Importación completada.\n\n✔ Guardados: {guardados}\n⚠ Omitidos: {omitidos}";
+            if (todos.Count > 0) resumen += "\n\nDetalles:\n• " + string.Join("\n• ", todos);
+            MessageBox.Show(resumen, "Importar Invitados", MessageBoxButtons.OK,
+                todos.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+        }
+
+        private void BtnDescargarPlantilla_Click(object? sender, EventArgs e)
+        {
+            using var dlg = new SaveFileDialog
+            {
+                Title    = "Guardar plantilla de Invitados",
+                Filter   = "Excel (*.xlsx)|*.xlsx",
+                FileName = "Plantilla_Invitados.xlsx"
+            };
+            if (dlg.ShowDialog() != DialogResult.OK) return;
+
+            try
+            {
+                ExcelImporter.GenerarPlantillaInvitados(dlg.FileName);
+                MessageBox.Show(
+                    "Plantilla guardada.\n\n" +
+                    "Columnas: Nombre | Teléfono | Grupo | Alergias | Confirmado\n\n" +
+                    "• 'Confirmado' acepta: Sí / No / 1 / 0\n" +
+                    "• Solo 'Nombre' es obligatorio",
+                    "Plantilla lista", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No se pudo guardar la plantilla:\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // ─── AjustarLista ──────────────────────────────────────────────────────
         private void AjustarLista()
         {
-            if (txtBuscar == null || lstInvitados == null) return;
-            int w = Math.Max(0, (Parent?.ClientSize.Width ?? Width) - 420);
-            txtBuscar.Width = Math.Max(220, w);
+            if (lstInvitados == null) return;
 
             int total = lstInvitados.ClientSize.Width;
             if (total <= 0 || lstInvitados.Columns.Count != 4) return;

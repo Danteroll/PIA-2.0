@@ -6,12 +6,14 @@ namespace GestionEventos
 {
     public class NuevoEventoForm : Form
     {
-        public Evento EventoCreado { get; private set; }
+        // nullable: solo se asigna si el usuario guarda
+        public Evento? EventoCreado { get; private set; }
 
-        private TextBox       txtNombre;
-        private ComboBox      cmbTipo;
-        private DateTimePicker dtpFecha;
-        private Button         btnGuardar, btnCancelar;
+        private TextBox        txtNombre  = null!;
+        private ComboBox       cmbTipo    = null!;
+        private DateTimePicker dtpFecha   = null!;
+        private Button         btnGuardar = null!;
+        private Button         btnCancelar= null!;
 
         public NuevoEventoForm()
         {
@@ -21,7 +23,9 @@ namespace GestionEventos
         private void BuildUI()
         {
             Text            = "Nuevo Evento";
-            Size            = new Size(430, 330);
+            // FIX: tamaño mínimo garantizado para que nunca se recorten controles
+            Size            = new Size(430, 340);
+            MinimumSize     = new Size(380, 320);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition   = FormStartPosition.CenterParent;
             MaximizeBox     = false;
@@ -29,14 +33,14 @@ namespace GestionEventos
             BackColor       = Color.White;
             Font            = new Font("Segoe UI", 9.5f);
 
-            // Header azul
+            // ── Header ────────────────────────────────────────────────────────
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
                 Height    = 55,
                 BackColor = Color.FromArgb(18, 30, 58)
             };
-            var lblTitulo = new Label
+            pnlHeader.Controls.Add(new Label
             {
                 Text      = "🎉   Crear Nuevo Evento",
                 ForeColor = Color.White,
@@ -44,16 +48,24 @@ namespace GestionEventos
                 Dock      = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
                 Padding   = new Padding(16, 0, 0, 0)
-            };
-            pnlHeader.Controls.Add(lblTitulo);
+            });
 
-            // Campos
+            // ── Área de contenido: Fill para adaptarse al tamaño del form ────
+            // FIX: reemplaza el tlp + botones de coordenadas absolutas por un
+            // layout de dos niveles (DockStyle) que siempre queda visible.
+            var pnlBody = new Panel
+            {
+                Dock    = DockStyle.Fill,
+                Padding = new Padding(28, 16, 28, 16)
+            };
+
+            // TableLayoutPanel de campos: Dock Top, alto fijo por fila
             var tlp = new TableLayoutPanel
             {
-                ColumnCount = 2,
-                RowCount    = 3,
-                Location    = new Point(24, 70),
-                Size        = new Size(374, 162),
+                ColumnCount     = 2,
+                RowCount        = 3,
+                Dock            = DockStyle.Top,
+                Height          = 162,
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 105));
@@ -63,22 +75,22 @@ namespace GestionEventos
 
             txtNombre = new TextBox
             {
-                Dock = DockStyle.Fill,
-                Font = new Font("Segoe UI", 10.5f),
+                Dock   = DockStyle.Fill,
+                Font   = new Font("Segoe UI", 10.5f),
                 Margin = new Padding(3)
             };
 
             cmbTipo = new ComboBox
             {
-                Dock = DockStyle.Fill,
+                Dock          = DockStyle.Fill,
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 10.5f),
-                Margin = new Padding(3)
+                Font          = new Font("Segoe UI", 10.5f),
+                Margin        = new Padding(3)
             };
             cmbTipo.Items.AddRange(new object[]
             {
-                "Boda", "Cumpleaños", "Bautizo", "Quinceañera",
-                "Graduación", "Aniversario", "Corporativo", "Otro"
+                "Boda","Cumpleaños","Bautizo","Quinceañera",
+                "Graduación","Aniversario","Corporativo","Otro"
             });
             cmbTipo.SelectedIndex = 0;
 
@@ -91,50 +103,67 @@ namespace GestionEventos
                 Margin = new Padding(3)
             };
 
-            // Añadir filas
-            AddRow(tlp, 0, "Nombre:",  txtNombre);
-            AddRow(tlp, 1, "Tipo:",    cmbTipo);
-            AddRow(tlp, 2, "Fecha:",   dtpFecha);
+            AddRow(tlp, 0, "Nombre:", txtNombre);
+            AddRow(tlp, 1, "Tipo:",   cmbTipo);
+            AddRow(tlp, 2, "Fecha:",  dtpFecha);
 
-            // Botones
-            btnGuardar = new Button
+            // ── Botones en FlowLayoutPanel Dock Bottom ────────────────────────
+            // FIX: los botones se anclan al fondo del pnlBody con Dock Bottom,
+            // eliminando las coordenadas absolutas que causaban el recorte.
+            var pnlBotones = new FlowLayoutPanel
             {
-                Text      = "✔  Guardar",
-                Size      = new Size(130, 40),
-                Location  = new Point(158, 248),
-                BackColor = Color.FromArgb(18, 30, 58),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font      = new Font("Segoe UI", 10, FontStyle.Bold),
-                Cursor    = Cursors.Hand
+                Dock          = DockStyle.Bottom,
+                Height        = 58,
+                FlowDirection = FlowDirection.RightToLeft,
+                WrapContents  = false,
+                BackColor     = Color.Transparent,
+                Padding       = new Padding(0, 10, 0, 0)
             };
-            btnGuardar.FlatAppearance.BorderSize = 0;
-            btnGuardar.Click += BtnGuardar_Click;
 
             btnCancelar = new Button
             {
                 Text      = "✖  Cancelar",
                 Size      = new Size(130, 40),
-                Location  = new Point(296, 248),
                 BackColor = Color.FromArgb(190, 45, 45),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
                 Font      = new Font("Segoe UI", 10),
-                Cursor    = Cursors.Hand
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, 0, 0)
             };
             btnCancelar.FlatAppearance.BorderSize = 0;
             btnCancelar.Click += (_, __) => DialogResult = DialogResult.Cancel;
 
+            btnGuardar = new Button
+            {
+                Text      = "✔  Guardar",
+                Size      = new Size(130, 40),
+                BackColor = Color.FromArgb(18, 30, 58),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font      = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor    = Cursors.Hand,
+                Margin    = new Padding(0, 0, 12, 0)
+            };
+            btnGuardar.FlatAppearance.BorderSize = 0;
+            btnGuardar.Click += BtnGuardar_Click;
+
+            // FlowDirection.RightToLeft → primero Cancelar, luego Guardar
+            pnlBotones.Controls.Add(btnCancelar);
+            pnlBotones.Controls.Add(btnGuardar);
+
+            pnlBody.Controls.Add(pnlBotones);
+            pnlBody.Controls.Add(tlp);
+
+            Controls.Add(pnlBody);
             Controls.Add(pnlHeader);
-            Controls.Add(tlp);
-            Controls.Add(btnGuardar);
-            Controls.Add(btnCancelar);
 
             AcceptButton = btnGuardar;
             CancelButton = btnCancelar;
         }
 
-        private void AddRow(TableLayoutPanel tlp, int row, string labelText, Control ctrl)
+        private static void AddRow(TableLayoutPanel tlp, int row,
+            string labelText, Control ctrl)
         {
             tlp.Controls.Add(new Label
             {
@@ -147,7 +176,7 @@ namespace GestionEventos
             tlp.Controls.Add(ctrl, 1, row);
         }
 
-        private void BtnGuardar_Click(object sender, EventArgs e)
+        private void BtnGuardar_Click(object? sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtNombre.Text))
             {
@@ -162,7 +191,7 @@ namespace GestionEventos
                 EventoCreado = new Evento
                 {
                     Nombre = txtNombre.Text.Trim(),
-                    Tipo   = cmbTipo.SelectedItem.ToString(),
+                    Tipo   = cmbTipo.SelectedItem?.ToString() ?? "Otro",
                     Fecha  = dtpFecha.Value.Date
                 };
                 DatabaseManager.CrearEvento(EventoCreado);

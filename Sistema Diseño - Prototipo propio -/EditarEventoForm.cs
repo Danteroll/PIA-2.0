@@ -8,10 +8,11 @@ namespace GestionEventos
     {
         private readonly Evento _evento;
 
-        private TextBox        txtNombre;
-        private ComboBox       cmbTipo;
-        private DateTimePicker dtpFecha;
-        private Button         btnGuardar, btnCancelar;
+        private TextBox        txtNombre  = null!;
+        private ComboBox       cmbTipo    = null!;
+        private DateTimePicker dtpFecha   = null!;
+        private Button         btnGuardar = null!;
+        private Button         btnCancelar= null!;
 
         public EditarEventoForm(Evento ev)
         {
@@ -31,7 +32,6 @@ namespace GestionEventos
             BackColor       = Color.White;
             Font            = new Font("Segoe UI", 9.5f);
 
-            // Header
             var pnlHeader = new Panel
             {
                 Dock      = DockStyle.Top,
@@ -48,7 +48,6 @@ namespace GestionEventos
                 Padding   = new Padding(16, 0, 0, 0)
             });
 
-            // Campos (centrados)
             var tlp = new TableLayoutPanel
             {
                 ColumnCount     = 2,
@@ -58,7 +57,7 @@ namespace GestionEventos
                 CellBorderStyle = TableLayoutPanelCellBorderStyle.None
             };
             tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 105));
-            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,  100));
+            tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             for (int i = 0; i < 3; i++)
                 tlp.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
 
@@ -94,7 +93,6 @@ namespace GestionEventos
             AddRow(tlp, 1, "Tipo:",   cmbTipo);
             AddRow(tlp, 2, "Fecha:",  dtpFecha);
 
-            // Botones (centrados)
             btnGuardar  = MakeBtn("✔  Guardar",  Color.FromArgb(18, 30, 58));
             btnCancelar = MakeBtn("✖  Cancelar", Color.FromArgb(190, 45, 45));
 
@@ -175,7 +173,7 @@ namespace GestionEventos
             dtpFecha.Value = _evento.Fecha;
         }
 
-        private void BtnGuardar_Click(object sender, EventArgs e)
+        private void BtnGuardar_Click(object? sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtNombre.Text))
             {
@@ -187,11 +185,13 @@ namespace GestionEventos
 
             try
             {
+                string nuevoTipo = cmbTipo.SelectedItem?.ToString() ?? "Otro";
+
                 DatabaseManager.EditarEvento(
                     _evento.Id,
                     _evento.Nombre,
                     txtNombre.Text.Trim(),
-                    cmbTipo.SelectedItem.ToString(),
+                    nuevoTipo,
                     dtpFecha.Value.Date);
 
                 DialogResult = DialogResult.OK;
