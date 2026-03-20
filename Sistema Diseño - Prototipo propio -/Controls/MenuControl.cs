@@ -8,17 +8,38 @@ namespace GestionEventos
     public class MenuControl : UserControl
     {
         // ── Controles ────────────────────────────────────────────────────────
-        private ComboBox  cmbEventos;
-        private ComboBox  cmbEntrada, cmbPlatilloFuerte, cmbPostre;
-        private TextBox   txtNuevaBebida;
-        private ComboBox  cmbTipoBebida;
-        private ListBox   lstBebidas;
-        private Button    btnGuardarMenu, btnAgregarBebida, btnEliminarBebida;
-        private System.Windows.Forms.Timer _timerSync;
+        private ComboBox cmbEventos = null!;
+        private ComboBox cmbEntrada = null!, cmbPlatilloFuerte = null!, cmbPostre = null!;
+        private TextBox txtNuevaBebida = null!;
+        private ComboBox cmbTipoBebida = null!;
+        private ListBox lstBebidas = null!;
+        private Button btnGuardarMenu = null!, btnAgregarBebida = null!, btnEliminarBebida = null!;
+        private System.Windows.Forms.Timer _timerSync = null!;
+        private TextBox txtNuevoPlatillo = null!;
+        private ComboBox cmbTipoPlatilloNuevo = null!;
+        private TextBox txtIngredientesPlatillo = null!;
+        private Button btnAgregarPlatillo = null!;
+        private ListBox lstPlatillosCatalogo = null!;
 
-        private string EventoActual => cmbEventos.SelectedItem?.ToString();
+
+
+        private string? EventoActual => cmbEventos.SelectedItem?.ToString();
         private Menu   _menuActual  = new Menu();
+        private class PlatilloListItem
+        {
+            public int Id { get; set; }
+            public string Nombre { get; set; } = "";
+            public string Tipo { get; set; } = "";
+            public string IngredientesTexto { get; set; } = "";
 
+            public override string ToString()
+            {
+                if (string.IsNullOrWhiteSpace(IngredientesTexto))
+                    return $"{Nombre} [{Tipo}]";
+
+                return $"{Nombre} [{Tipo}]  →  {IngredientesTexto}";
+            }
+        }
         // ── Catálogo de platillos ─────────────────────────────────────────────
         private static readonly string[] Entradas =
         {
@@ -317,6 +338,95 @@ namespace GestionEventos
             pnlCards.Controls.Add(MakePlatilloCard(
                 "🍰  Postre", Postres, Color.FromArgb(235, 87, 155),
                 out cmbPostre));
+            var pnlCatalogo = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 250,
+                BackColor = Color.White,
+                Padding = new Padding(16, 14, 16, 14),
+                Margin = new Padding(0, 10, 0, 0)
+            };
+            pnlCatalogo.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(72, 149, 239), 2f);
+                e.Graphics.DrawRectangle(pen, 0, 0, pnlCatalogo.Width - 1, pnlCatalogo.Height - 1);
+            };
+
+            var lblCat = new Label
+            {
+                Text = "🧾  Catálogo de Platillos",
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                ForeColor = Color.FromArgb(22, 38, 70),
+                AutoSize = true,
+                Location = new Point(14, 10)
+            };
+
+            txtNuevoPlatillo = new TextBox
+            {
+                PlaceholderText = "Nombre del platillo...",
+                Font = new Font("Segoe UI", 10f),
+                Location = new Point(18, 45),
+                Width = 210,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            cmbTipoPlatilloNuevo = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10f),
+                Location = new Point(240, 45),
+                Width = 140
+            };
+            cmbTipoPlatilloNuevo.Items.AddRange(new object[] { "Entrada", "Fuerte", "Postre", "Otro" });
+            cmbTipoPlatilloNuevo.SelectedIndex = 0;
+
+            btnAgregarPlatillo = new Button
+            {
+                Text = "➕ Agregar",
+                BackColor = Color.FromArgb(18, 30, 58),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Location = new Point(392, 43),
+                Size = new Size(92, 30)
+            };
+            btnAgregarPlatillo.FlatAppearance.BorderSize = 0;
+            btnAgregarPlatillo.Click += BtnAgregarPlatillo_Click;
+
+            var lblIng = new Label
+            {
+                Text = "Ingredientes (separados por coma):",
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(60, 75, 110),
+                AutoSize = true,
+                Location = new Point(18, 84)
+            };
+
+            txtIngredientesPlatillo = new TextBox
+            {
+                PlaceholderText = "Ej. queso, tomate, crema",
+                Font = new Font("Segoe UI", 9.5f),
+                Location = new Point(18, 106),
+                Width = 466,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            lstPlatillosCatalogo = new ListBox
+            {
+                Location = new Point(18, 142),
+                Size = new Size(466, 88),
+                Font = new Font("Segoe UI", 9.5f),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            pnlCatalogo.Controls.Add(lblCat);
+            pnlCatalogo.Controls.Add(txtNuevoPlatillo);
+            pnlCatalogo.Controls.Add(cmbTipoPlatilloNuevo);
+            pnlCatalogo.Controls.Add(btnAgregarPlatillo);
+            pnlCatalogo.Controls.Add(lblIng);
+            pnlCatalogo.Controls.Add(txtIngredientesPlatillo);
+            pnlCatalogo.Controls.Add(lstPlatillosCatalogo);
 
             // Botón guardar menú
             btnGuardarMenu = new Button
@@ -338,6 +448,7 @@ namespace GestionEventos
 
             pnlPlatillos.Controls.Add(btnGuardarMenu);
             pnlPlatillos.Controls.Add(sepGuardar);
+            pnlPlatillos.Controls.Add(pnlCatalogo);
             pnlPlatillos.Controls.Add(pnlCards);
             pnlPlatillos.Controls.Add(lblPlatTit);
 
@@ -427,7 +538,7 @@ namespace GestionEventos
                 return;
             }
 
-            string prev = cmbEventos.SelectedItem?.ToString();
+            string? prev = cmbEventos.SelectedItem?.ToString();
             cmbEventos.SelectedIndexChanged -= CmbEventos_Changed;
             cmbEventos.Items.Clear();
 
@@ -456,14 +567,16 @@ namespace GestionEventos
             _menuActual = DatabaseManager.GetMenu(EventoActual);
 
             // Platillos
-            SetCombo(cmbEntrada,         _menuActual.Entrada,        Entradas);
-            SetCombo(cmbPlatilloFuerte,  _menuActual.PlatilloFuerte, PlatillosFuertes);
-            SetCombo(cmbPostre,          _menuActual.Postre,         Postres);
+            SetCombo(cmbEntrada, _menuActual.Entrada, Entradas);
+            SetCombo(cmbPlatilloFuerte, _menuActual.PlatilloFuerte, PlatillosFuertes);
+            SetCombo(cmbPostre, _menuActual.Postre, Postres);
 
             // Bebidas
             lstBebidas.Items.Clear();
             foreach (var b in _menuActual.Bebidas)
                 lstBebidas.Items.Add(b);
+
+            CargarCatalogoPlatillos();
         }
 
         private static void SetCombo(ComboBox cmb, string valor, string[] lista)
@@ -471,7 +584,28 @@ namespace GestionEventos
             int idx = Array.IndexOf(lista, valor);
             cmb.SelectedIndex = idx >= 0 ? idx : 0;
         }
+        private void CargarCatalogoPlatillos()
+        {
+            lstPlatillosCatalogo.Items.Clear();
 
+            if (EventoActual == null) return;
+
+            var platillos = DatabaseManager.ObtenerPlatillos(EventoActual);
+
+            foreach (var p in platillos)
+            {
+                var ingredientes = DatabaseManager.ObtenerIngredientesDePlatillo(EventoActual, p.Id);
+                string ingredientesTexto = string.Join(", ", ingredientes.Select(i => i.Nombre));
+
+                lstPlatillosCatalogo.Items.Add(new PlatilloListItem
+                {
+                    Id = p.Id,
+                    Nombre = p.Nombre,
+                    Tipo = p.Tipo,
+                    IngredientesTexto = ingredientesTexto
+                });
+            }
+        }
         // ─── Botones ───────────────────────────────────────────────────────────
         private void BtnGuardarMenu_Click(object sender, EventArgs e)
         {
@@ -549,6 +683,66 @@ namespace GestionEventos
             {
                 DatabaseManager.EliminarBebida(EventoActual, beb.Id);
                 CargarMenu();
+            }
+        }
+        private void BtnAgregarPlatillo_Click(object sender, EventArgs e)
+        {
+            if (EventoActual == null)
+            {
+                MessageBox.Show("Selecciona un evento primero.", "Aviso",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string nombre = txtNuevoPlatillo.Text.Trim();
+            string tipo = cmbTipoPlatilloNuevo.SelectedItem?.ToString() ?? "Otro";
+            string ingredientesTexto = txtIngredientesPlatillo.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(nombre))
+            {
+                MessageBox.Show("Escribe el nombre del platillo.", "Aviso",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                txtNuevoPlatillo.Focus();
+                return;
+            }
+
+            try
+            {
+                int platilloId = DatabaseManager.AgregarPlatillo(EventoActual, new Platillo
+                {
+                    Nombre = nombre,
+                    Tipo = tipo
+                });
+
+                if (!string.IsNullOrWhiteSpace(ingredientesTexto))
+                {
+                    var ingredientes = ingredientesTexto
+                        .Split(',')
+                        .Select(x => x.Trim())
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    foreach (var ing in ingredientes)
+                    {
+                        int ingredienteId = DatabaseManager.AgregarIngrediente(EventoActual, ing);
+                        DatabaseManager.AsignarIngredienteAPlatillo(EventoActual, platilloId, ingredienteId);
+                    }
+                }
+
+                txtNuevoPlatillo.Clear();
+                txtIngredientesPlatillo.Clear();
+                cmbTipoPlatilloNuevo.SelectedIndex = 0;
+
+                CargarCatalogoPlatillos();
+
+                MessageBox.Show("✅ Platillo agregado correctamente.", "Listo",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al agregar platillo:\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

@@ -64,4 +64,16 @@ namespace GestionEventos
                 ? Nombre
                 : $"{Nombre}  [{Tipo}]";
     }
+    public class Platillo
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = "";
+        public string Tipo { get; set; } = "";
+    }
+
+    public class Ingrediente
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = "";
+    }
 }

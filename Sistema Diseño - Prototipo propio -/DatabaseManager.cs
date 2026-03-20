@@ -114,17 +114,6 @@ namespace GestionEventos
                     )",
                     @"CREATE TABLE IF NOT EXISTS Menu (
                         Id             INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Entrada        TEXT DEFAULT '',
-                        PlatilloFuerte TEXT DEFAULT '',
-                        Postre         TEXT DEFAULT ''
-                    )",
-                    @"CREATE TABLE IF NOT EXISTS Bebidas (
-                        Id     INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Nombre TEXT NOT NULL,
-                        Tipo   TEXT DEFAULT ''
-                    )",
-                    @"CREATE TABLE IF NOT EXISTS Menu (
-                        Id             INTEGER PRIMARY KEY AUTOINCREMENT,
                         Entrada        TEXT NOT NULL DEFAULT '',
                         PlatilloFuerte TEXT NOT NULL DEFAULT '',
                         Postre         TEXT NOT NULL DEFAULT ''
@@ -133,6 +122,23 @@ namespace GestionEventos
                         Id     INTEGER PRIMARY KEY AUTOINCREMENT,
                         Nombre TEXT NOT NULL,
                         Tipo   TEXT NOT NULL DEFAULT 'Otra'
+                    )",
+                   @"CREATE TABLE IF NOT EXISTS Platillos (
+                        Id     INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Nombre TEXT NOT NULL,
+                        Tipo   TEXT NOT NULL DEFAULT 'Otro'
+                    )",
+                    @"CREATE TABLE IF NOT EXISTS Ingredientes (
+                        Id     INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Nombre TEXT NOT NULL UNIQUE
+                    )",
+                    @"CREATE TABLE IF NOT EXISTS PlatilloIngrediente (
+                        Id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        PlatilloId    INTEGER NOT NULL,
+                        IngredienteId INTEGER NOT NULL,
+                        FOREIGN KEY(PlatilloId) REFERENCES Platillos(Id),
+                        FOREIGN KEY(IngredienteId) REFERENCES Ingredientes(Id),
+                        UNIQUE(PlatilloId, IngredienteId)
                     )"
                 };
                 foreach (var sql in tablas)
@@ -571,6 +577,139 @@ namespace GestionEventos
                     cmd.ExecuteNonQuery();
                 }
             }
+        }
+        private static void EnsurePlatilloTables(SqliteConnection conn)
+        {
+            var sqls = new[]
+            {
+                @"CREATE TABLE IF NOT EXISTS Platillos (
+                Id     INTEGER PRIMARY KEY AUTOINCREMENT,
+                Nombre TEXT NOT NULL,
+                Tipo   TEXT NOT NULL DEFAULT 'Otro'
+                )",
+                @"CREATE TABLE IF NOT EXISTS Ingredientes (
+                Id     INTEGER PRIMARY KEY AUTOINCREMENT,
+                Nombre TEXT NOT NULL UNIQUE
+                )",
+                @"CREATE TABLE IF NOT EXISTS PlatilloIngrediente (
+                Id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                PlatilloId    INTEGER NOT NULL,
+                IngredienteId INTEGER NOT NULL,
+                FOREIGN KEY(PlatilloId) REFERENCES Platillos(Id),
+                FOREIGN KEY(IngredienteId) REFERENCES Ingredientes(Id)
+                )"
+            };
+
+            foreach (var sql in sqls)
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = sql;
+                cmd.ExecuteNonQuery();
+            }
+        }
+        public static int AgregarPlatillo(string eventoNombre, Platillo platillo)
+        {
+            using var conn = AbrirConexion(GetEventDbPath(eventoNombre));
+            EnsurePlatilloTables(conn);
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"INSERT INTO Platillos (Nombre, Tipo)
+                        VALUES (@nombre, @tipo);
+                        SELECT last_insert_rowid();";
+
+            cmd.Parameters.AddWithValue("@nombre", platillo.Nombre);
+            cmd.Parameters.AddWithValue("@tipo", platillo.Tipo);
+
+            return Convert.ToInt32(cmd.ExecuteScalar());
+        }
+        public static List<Platillo> ObtenerPlatillos(string eventoNombre)
+        {
+            var lista = new List<Platillo>();
+
+            using var conn = AbrirConexion(GetEventDbPath(eventoNombre));
+            EnsurePlatilloTables(conn);
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"SELECT Id, Nombre, Tipo
+                        FROM Platillos
+                        ORDER BY Tipo, Nombre";
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                lista.Add(new Platillo
+                {
+                    Id = reader.GetInt32(0),
+                    Nombre = reader.GetString(1),
+                    Tipo = reader.GetString(2)
+                });
+            }
+
+            return lista;
+        }
+        public static int AgregarIngrediente(string eventoNombre, string nombreIngrediente)
+        {
+            using var conn = AbrirConexion(GetEventDbPath(eventoNombre));
+            EnsurePlatilloTables(conn);
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"INSERT OR IGNORE INTO Ingredientes (Nombre)
+                            VALUES (@nombre)";
+                cmd.Parameters.AddWithValue("@nombre", nombreIngrediente.Trim());
+                cmd.ExecuteNonQuery();
+            }
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"SELECT Id FROM Ingredientes
+                            WHERE Nombre = @nombre";
+                cmd.Parameters.AddWithValue("@nombre", nombreIngrediente.Trim());
+
+                var result = cmd.ExecuteScalar();
+                return Convert.ToInt32(result);
+            }
+        }
+        public static void AsignarIngredienteAPlatillo(string eventoNombre, int platilloId, int ingredienteId)
+        {
+            using var conn = AbrirConexion(GetEventDbPath(eventoNombre));
+            EnsurePlatilloTables(conn);
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"INSERT OR IGNORE INTO PlatilloIngrediente (PlatilloId, IngredienteId)
+                    VALUES (@platilloId, @ingredienteId)";
+            cmd.Parameters.AddWithValue("@platilloId", platilloId);
+            cmd.Parameters.AddWithValue("@ingredienteId", ingredienteId);
+            cmd.ExecuteNonQuery();
+        }
+        public static List<Ingrediente> ObtenerIngredientesDePlatillo(string eventoNombre, int platilloId)
+        {
+            var lista = new List<Ingrediente>();
+
+            using var conn = AbrirConexion(GetEventDbPath(eventoNombre));
+            EnsurePlatilloTables(conn);
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT i.Id, i.Nombre
+                FROM Ingredientes i
+                INNER JOIN PlatilloIngrediente pi ON pi.IngredienteId = i.Id
+                WHERE pi.PlatilloId = @platilloId
+                ORDER BY i.Nombre";
+
+            cmd.Parameters.AddWithValue("@platilloId", platilloId);
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                lista.Add(new Ingrediente
+                {
+                    Id = reader.GetInt32(0),
+                    Nombre = reader.GetString(1)
+                });
+            }
+
+            return lista;
         }
     }
 }
