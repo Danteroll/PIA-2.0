@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using System.Collections.Generic;
 
 namespace GestionEventos
 {
@@ -19,78 +20,6 @@ namespace GestionEventos
         private string EventoActual => cmbEventos.SelectedItem?.ToString();
         private Menu   _menuActual  = new Menu();
 
-        // ── Catálogo de platillos ─────────────────────────────────────────────
-        private static readonly string[] Entradas =
-        {
-            "— Sin entrada —",
-            "Sopa de lima",
-            "Sopa de tortilla",
-            "Crema de elote",
-            "Consomé de pollo",
-            "Ensalada César",
-            "Ensalada caprese",
-            "Carpaccio de res",
-            "Bruschetta italiana",
-            "Ceviche de camarón",
-            "Aguachile verde",
-            "Coctel de camarón",
-            "Tarta de queso brie",
-            "Charcutería y quesos",
-            "Dip de espinaca y alcachofa",
-        };
-
-        private static readonly string[] PlatillosFuertes =
-        {
-            "— Sin platillo fuerte —",
-            "Filete de res al vino tinto",
-            "Arrachera a la parrilla",
-            "Costillas BBQ",
-            "Pollo a la mostaza",
-            "Pollo en salsa de champiñones",
-            "Pechuga rellena de espinaca",
-            "Salmón al limón con alcaparras",
-            "Tilapia empapelada",
-            "Camarones al ajillo",
-            "Brochetas de mariscos",
-            "Pasta Alfredo con pollo",
-            "Pasta a la boloñesa",
-            "Risotto de champiñones",
-            "Lasaña de carne",
-            "Enchiladas verdes",
-            "Mole negro con pollo",
-            "Birria de res",
-            "Cordero al horno",
-            "Pavo relleno",
-            "Lomo de cerdo a las finas hierbas",
-            "Cochinita pibil",
-            "Opción vegetariana: Curry de garbanzos",
-            "Opción vegetariana: Portobello relleno",
-        };
-
-        private static readonly string[] Postres =
-        {
-            "— Sin postre —",
-            "Pastel de bodas (tradicional)",
-            "Pastel de chocolate",
-            "Pastel tres leches",
-            "Cheesecake de fresa",
-            "Cheesecake de mango",
-            "Tiramisú",
-            "Crème brûlée",
-            "Panna cotta de vainilla",
-            "Mousse de chocolate",
-            "Flan napolitano",
-            "Arroz con leche",
-            "Profiteroles con chocolate",
-            "Macarons surtidos",
-            "Cupcakes decorados",
-            "Fondue de chocolate con fresas",
-            "Helado artesanal surtido",
-            "Tarta de limón",
-            "Brownies con nuez",
-            "Mesa de dulces",
-        };
-
         private static readonly string[] TiposBebida =
         {
             "Alcohólica", "Sin alcohol", "Vino", "Cerveza", "Cóctel", "Refresco", "Otra"
@@ -100,6 +29,27 @@ namespace GestionEventos
         {
             BuildUI();
             IniciarTimer();
+
+
+            var btnValidar = new Button 
+            { 
+                Text = "🧠 Validar Alergias del Menú", 
+                
+                Location = new Point(30, 550), 
+                Size = new Size(300, 40),      
+                BackColor = Color.FromArgb(200, 50, 50), 
+                ForeColor = Color.White, 
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.Flat
+            };
+            btnValidar.FlatAppearance.BorderSize = 0;
+            
+        
+            btnValidar.Click += BtnValidarAlergias_Click;
+
+            this.Controls.Add(btnValidar);
+            btnValidar.BringToFront(); 
         }
 
         // ─── UI ────────────────────────────────────────────────────────────────
@@ -308,15 +258,10 @@ namespace GestionEventos
                 BackColor     = Color.Transparent
             };
 
-            pnlCards.Controls.Add(MakePlatilloCard(
-                "🥗  Entrada", Entradas, Color.FromArgb(56, 195, 164),
-                out cmbEntrada));
-            pnlCards.Controls.Add(MakePlatilloCard(
-                "🍖  Platillo Fuerte", PlatillosFuertes, Color.FromArgb(72, 149, 239),
-                out cmbPlatilloFuerte));
-            pnlCards.Controls.Add(MakePlatilloCard(
-                "🍰  Postre", Postres, Color.FromArgb(235, 87, 155),
-                out cmbPostre));
+            string[] vacio = new string[] { "— Selecciona un platillo —" };
+            pnlCards.Controls.Add(MakePlatilloCard("🥗  Entrada", vacio, Color.FromArgb(56, 195, 164), out cmbEntrada));
+            pnlCards.Controls.Add(MakePlatilloCard("🍖  Platillo Fuerte", vacio, Color.FromArgb(72, 149, 239), out cmbPlatilloFuerte));
+            pnlCards.Controls.Add(MakePlatilloCard("🍰  Postre", vacio, Color.FromArgb(235, 87, 155), out cmbPostre));
 
             // Botón guardar menú
             btnGuardarMenu = new Button
@@ -349,65 +294,55 @@ namespace GestionEventos
         }
 
         // ─── Helper: card de un platillo ──────────────────────────────────────
-        private Panel MakePlatilloCard(string titulo, string[] opciones,
-            Color accent, out ComboBox cmb)
+        private Panel MakePlatilloCard(string titulo, string[] opciones, Color accent, out ComboBox cmb)
         {
-            var card = new Panel
-            {
-                Width     = 500,
-                Height    = 108,
-                Margin    = new Padding(0, 0, 0, 12),
-                BackColor = Color.White
-            };
-            card.Paint += (s, e) =>
-            {
-                using (var pen = new Pen(accent, 3f))
-                    e.Graphics.DrawRectangle(pen, 0, 0,
-                        card.Width - 1, card.Height - 1);
+            var card = new Panel { Width = 500, Height = 108, Margin = new Padding(0, 0, 0, 12), BackColor = Color.White };
+            card.Paint += (s, e) => { using (var pen = new Pen(accent, 3f)) e.Graphics.DrawRectangle(pen, 0, 0, card.Width - 1, card.Height - 1); };
+
+            var bar = new Panel { Width = 6, Dock = DockStyle.Left, BackColor = accent };
+            var lblTit = new Label { Text = titulo, Font = new Font("Segoe UI", 10, FontStyle.Bold), ForeColor = accent, Location = new Point(16, 10), AutoSize = true, BackColor = Color.Transparent };
+
+            string tipoLimpio = titulo.Contains("Entrada") ? "Entrada" : (titulo.Contains("Fuerte") ? "Fuerte" : "Postre");
+
+            // Botón de Agregar
+            var btnIngredientes = new Button { Text = "➕ Agregar Platillo", Location = new Point(card.Width - 170, 8), Size = new Size(125, 26), FlatStyle = FlatStyle.Flat, ForeColor = Color.DimGray, Cursor = Cursors.Hand, BackColor = Color.WhiteSmoke };
+            btnIngredientes.FlatAppearance.BorderSize = 0;
+            btnIngredientes.Click += (s, e) => {
+                if (EventoActual == null) { MessageBox.Show("Selecciona un evento."); return; }
+                using (var form = new NuevoPlatilloForm(EventoActual, tipoLimpio)) { form.ShowDialog(); }
+                CargarMenu(); 
             };
 
-            // Franja de color izquierda
-            var bar = new Panel
-            {
-                Width     = 6,
-                Dock      = DockStyle.Left,
-                BackColor = accent
+            // 1. Creamos el ComboBox en una variable local normal
+            var comboLocal = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font("Segoe UI", 11f), Location = new Point(16, 42), Width = 460, BackColor = Color.FromArgb(245, 248, 255), FlatStyle = FlatStyle.Flat };
+            comboLocal.Items.AddRange(opciones);
+            comboLocal.SelectedIndex = 0;
+
+            cmb = comboLocal;
+
+            // Botón de Eliminar
+            var btnEliminar = new Button { Text = "🗑️", Location = new Point(card.Width - 40, 8), Size = new Size(30, 26), FlatStyle = FlatStyle.Flat, ForeColor = Color.IndianRed, Cursor = Cursors.Hand, BackColor = Color.WhiteSmoke };
+            btnEliminar.FlatAppearance.BorderSize = 0;
+            btnEliminar.Click += (s, e) => {
+                if (EventoActual == null) 
+                {
+                    MessageBox.Show("Selecciona un evento primero.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                
+                using (var form = new EliminarPlatilloForm(EventoActual, tipoLimpio)) 
+                {
+                    form.ShowDialog();
+                }
+                
+                CargarMenu();
             };
 
-            var lblTit = new Label
-            {
-                Text      = titulo,
-                Font      = new Font("Segoe UI", 10, FontStyle.Bold),
-                ForeColor = accent,
-                Location  = new Point(16, 10),
-                AutoSize  = true,
-                BackColor = Color.Transparent
-            };
+            var lblSub = new Label { Text = $"{opciones.Length - 1} opciones disponibles", Font = new Font("Segoe UI", 8f), ForeColor = Color.FromArgb(140, 155, 180), Location = new Point(16, 78), AutoSize = true, BackColor = Color.Transparent };
 
-            cmb = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = new Font("Segoe UI", 11f),
-                Location      = new Point(16, 42),
-                Width         = 460,
-                BackColor     = Color.FromArgb(245, 248, 255),
-                FlatStyle     = FlatStyle.Flat
-            };
-            cmb.Items.AddRange(opciones);
-            cmb.SelectedIndex = 0;
-
-            var lblSub = new Label
-            {
-                Text      = $"{opciones.Length - 1} opciones disponibles",
-                Font      = new Font("Segoe UI", 8f),
-                ForeColor = Color.FromArgb(140, 155, 180),
-                Location  = new Point(16, 78),
-                AutoSize  = true,
-                BackColor = Color.Transparent
-            };
-
-            card.Controls.AddRange(new Control[] { bar, lblTit, cmb, lblSub });
+            card.Controls.AddRange(new Control[] { bar, lblTit, btnIngredientes, btnEliminar, comboLocal, lblSub });
             return card;
+        
         }
 
         // ─── Timer ─────────────────────────────────────────────────────────────
@@ -455,52 +390,68 @@ namespace GestionEventos
 
             _menuActual = DatabaseManager.GetMenu(EventoActual);
 
-            // Platillos
-            SetCombo(cmbEntrada,         _menuActual.Entrada,        Entradas);
-            SetCombo(cmbPlatilloFuerte,  _menuActual.PlatilloFuerte, PlatillosFuertes);
-            SetCombo(cmbPostre,          _menuActual.Postre,         Postres);
+            
+            string[] catEntradas = DatabaseManager.ObtenerCatalogoPlatillos(EventoActual, "Entrada").ToArray();
+            string[] catFuertes  = DatabaseManager.ObtenerCatalogoPlatillos(EventoActual, "Fuerte").ToArray();
+            string[] catPostres  = DatabaseManager.ObtenerCatalogoPlatillos(EventoActual, "Postre").ToArray();
 
-            // Bebidas
+            cmbEntrada.Items.Clear();        cmbEntrada.Items.AddRange(catEntradas);
+            cmbPlatilloFuerte.Items.Clear(); cmbPlatilloFuerte.Items.AddRange(catFuertes);
+            cmbPostre.Items.Clear();         cmbPostre.Items.AddRange(catPostres);
+
+            Action<ComboBox> actualizarContador = (cmb) => {
+                foreach (Control c in cmb.Parent.Controls)
+                    if (c is Label lbl && lbl.Text.Contains("opciones"))
+                        lbl.Text = $"{cmb.Items.Count - 1} opciones disponibles";
+            };
+            actualizarContador(cmbEntrada);
+            actualizarContador(cmbPlatilloFuerte);
+            actualizarContador(cmbPostre);
+
+            SetCombo(cmbEntrada,        _menuActual.Entrada?.Nombre ?? "",        catEntradas);
+            SetCombo(cmbPlatilloFuerte, _menuActual.PlatilloFuerte?.Nombre ?? "", catFuertes);
+            SetCombo(cmbPostre,         _menuActual.Postre?.Nombre ?? "",         catPostres);
+
             lstBebidas.Items.Clear();
-            foreach (var b in _menuActual.Bebidas)
-                lstBebidas.Items.Add(b);
+            foreach (var b in _menuActual.Bebidas) lstBebidas.Items.Add(b);
         }
 
         private static void SetCombo(ComboBox cmb, string valor, string[] lista)
         {
-            int idx = Array.IndexOf(lista, valor);
+            if (string.IsNullOrEmpty(valor)) { cmb.SelectedIndex = 0; return; }
+            
+
+            int idx = Array.FindIndex(lista, x => x == valor || x.StartsWith(valor + " ("));
             cmb.SelectedIndex = idx >= 0 ? idx : 0;
         }
 
-        // ─── Botones ───────────────────────────────────────────────────────────
         private void BtnGuardarMenu_Click(object sender, EventArgs e)
         {
             if (EventoActual == null)
             {
-                MessageBox.Show("Selecciona un evento primero.", "Aviso",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Selecciona un evento primero.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            _menuActual.Entrada        = cmbEntrada.SelectedItem?.ToString()       ?? "";
-            _menuActual.PlatilloFuerte = cmbPlatilloFuerte.SelectedItem?.ToString() ?? "";
-            _menuActual.Postre         = cmbPostre.SelectedItem?.ToString()         ?? "";
+            Func<ComboBox, string> limpiarNombre = (cmb) => {
+                string txt = cmb.SelectedItem?.ToString() ?? "";
+                if (txt.StartsWith("—")) return "";
+                int idx = txt.IndexOf(" (");
+                return idx > 0 ? txt.Substring(0, idx) : txt;
+            };
 
-            // Limpiar el "— Sin ... —" para no guardarlo como texto real
-            if (_menuActual.Entrada.StartsWith("—"))        _menuActual.Entrada        = "";
-            if (_menuActual.PlatilloFuerte.StartsWith("—")) _menuActual.PlatilloFuerte = "";
-            if (_menuActual.Postre.StartsWith("—"))         _menuActual.Postre         = "";
+            _menuActual.Entrada        = new Platillo { Nombre = limpiarNombre(cmbEntrada) };
+            _menuActual.PlatilloFuerte = new Platillo { Nombre = limpiarNombre(cmbPlatilloFuerte) };
+            _menuActual.Postre         = new Platillo { Nombre = limpiarNombre(cmbPostre) };
 
             try
             {
                 DatabaseManager.GuardarMenu(EventoActual, _menuActual);
-                MessageBox.Show("✅  Menú guardado correctamente.", "Guardado",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("✅  Menú guardado correctamente.", "Guardado", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error al guardar:\n" + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error al guardar:\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -550,6 +501,69 @@ namespace GestionEventos
                 DatabaseManager.EliminarBebida(EventoActual, beb.Id);
                 CargarMenu();
             }
+        }   
+        private void BtnValidarAlergias_Click(object sender, EventArgs e)
+        {
+            if (EventoActual == null) 
+            {
+                MessageBox.Show("Selecciona un evento primero.", "Aviso", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            //Función rápida para quitar los paréntesis y obtener el nombre puro del platillo
+            Func<ComboBox, string> limpiar = (cmb) => {
+                string txt = cmb.SelectedItem?.ToString() ?? "";
+                if (txt.StartsWith("—")) return "";
+                return txt.IndexOf(" (") > 0 ? txt.Substring(0, txt.IndexOf(" (")) : txt;
+            };
+
+            string entrada = limpiar(cmbEntrada);
+            string fuerte = limpiar(cmbPlatilloFuerte);
+            string postre = limpiar(cmbPostre);
+
+            //Juntamos TODOS los ingredientes de los platillos seleccionados
+            List<string> ingredientesMenu = new List<string>();
+            
+            Action<string> agregarIngredientes = (nombrePlatillo) => {
+                if (!string.IsNullOrEmpty(nombrePlatillo)) {
+                    var lista = DatabaseManager.ObtenerIngredientesDePlatillo(EventoActual, nombrePlatillo);
+                    foreach(var ing in lista) ingredientesMenu.Add(ing.Nombre.ToLower());
+                }
+            };
+
+            agregarIngredientes(entrada);
+            agregarIngredientes(fuerte);
+            agregarIngredientes(postre);
+
+            List<string> alergiasInvitados = DatabaseManager.ObtenerAlergiasDelEvento(EventoActual);
+
+            //Revisamos si algún ingrediente es igual a alguna alergia
+            List<string> peligrosDetectados = new List<string>();
+            foreach (var alergia in alergiasInvitados)
+            {
+                foreach (var ingrediente in ingredientesMenu)
+                {
+                    
+                    if (ingrediente.Contains(alergia) || alergia.Contains(ingrediente))
+                    {
+                        if (!peligrosDetectados.Contains(alergia))
+                            peligrosDetectados.Add(alergia);
+                    }
+                }
+            }
+
+            // 5. Mostramos el veredicto
+            if (peligrosDetectados.Count > 0)
+            {
+                string lista = string.Join(", ", peligrosDetectados).ToUpper();
+                MessageBox.Show($"¡⚠️ ALERTA DE SALUD!\n\nEl menú seleccionado contiene ingredientes peligrosos que chocan con las alergias de tus invitados:\n\n❌ {lista}\n\nPor favor, cambia los platillos para evitar accidentes.", "Validación Fallida", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            else
+            {
+                MessageBox.Show("✅ ¡MENÚ 100% SEGURO!\n\nNingún ingrediente del menú choca con las alergias registradas de tus invitados.", "Validación Exitosa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
+
+        
     }
 }

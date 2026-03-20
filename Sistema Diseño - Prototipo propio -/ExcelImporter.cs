@@ -51,7 +51,7 @@ namespace GestionEventos
                     {
                         Nombre       = nombre,
                         Telefono     = GetCelda(sheet, row, hdr, "telefono", "telefono"),
-                        Alergias     = GetCelda(sheet, row, hdr, "alergias", "alergia"),
+                        AlergiasText = GetCelda(sheet, row, hdr, "alergias", "alergia"),
                         Grupo        = GetCelda(sheet, row, hdr, "grupo"),
                         Confirmado   = ParseBool(GetCelda(sheet, row, hdr, "confirmado")),
                         Acompanantes = 0
