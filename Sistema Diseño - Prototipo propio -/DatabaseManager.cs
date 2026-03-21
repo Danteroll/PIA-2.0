@@ -114,17 +114,6 @@ namespace GestionEventos
                     )",
                     @"CREATE TABLE IF NOT EXISTS Menu (
                         Id             INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Entrada        TEXT DEFAULT '',
-                        PlatilloFuerte TEXT DEFAULT '',
-                        Postre         TEXT DEFAULT ''
-                    )",
-                    @"CREATE TABLE IF NOT EXISTS Bebidas (
-                        Id     INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Nombre TEXT NOT NULL,
-                        Tipo   TEXT DEFAULT ''
-                    )",
-                    @"CREATE TABLE IF NOT EXISTS Menu (
-                        Id             INTEGER PRIMARY KEY AUTOINCREMENT,
                         Entrada        TEXT NOT NULL DEFAULT '',
                         PlatilloFuerte TEXT NOT NULL DEFAULT '',
                         Postre         TEXT NOT NULL DEFAULT ''
@@ -305,6 +294,30 @@ namespace GestionEventos
                     cmd.CommandText = "SELECT COALESCE(MAX(Numero), 0) + 1 FROM Mesas";
                     numero = Convert.ToInt32(cmd.ExecuteScalar());
                 }
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText =
+                        "INSERT INTO Mesas (Numero,Capacidad,PosX,PosY) " +
+                        "VALUES (@n,@c,@x,@y)";
+                    cmd.Parameters.AddWithValue("@n", numero);
+                    cmd.Parameters.AddWithValue("@c", capacidad);
+                    cmd.Parameters.AddWithValue("@x", posX);
+                    cmd.Parameters.AddWithValue("@y", posY);
+                    cmd.ExecuteNonQuery();
+                }
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT last_insert_rowid()";
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
+            }
+        }
+
+        public static int AgregarMesaConNumero(
+            string eventoNombre, int numero, int capacidad, int posX, int posY)
+        {
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            {
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText =

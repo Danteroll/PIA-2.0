@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
 namespace GestionEventos
@@ -29,6 +30,8 @@ namespace GestionEventos
         private static readonly string[] Emojis =
             { "💒","🎂","👶","👸","🎓","💑","💼","🎉" };
 
+        private bool _hover;
+
         public EventoCard(Evento ev, int index)
         {
             Evento = ev;
@@ -37,16 +40,17 @@ namespace GestionEventos
 
         private void Build(int index)
         {
-            Size      = new Size(235, 195);
+            Size      = new Size(250, 205);
             Margin    = new Padding(14);
-            BackColor = Color.White;
+            BackColor = Color.Transparent;
+            DoubleBuffered = true;
 
             var baseColor = Colores[index % Colores.Length];
 
             var pnlTop = new Panel
             {
                 Dock      = DockStyle.Top,
-                Height    = 8,
+                Height    = 7,
                 BackColor = baseColor
             };
 
@@ -58,7 +62,7 @@ namespace GestionEventos
                 Text      = emoji,
                 Font      = new Font("Segoe UI Emoji", 20f),
                 Size      = new Size(50, 50),
-                Location  = new Point(177, 14),
+                Location  = new Point(190, 14),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
@@ -66,19 +70,19 @@ namespace GestionEventos
             var lblNombre = new Label
             {
                 Text      = Evento.Nombre,
-                Font      = new Font("Segoe UI", 11.5f, FontStyle.Bold),
+                Font      = new Font("Segoe UI Semibold", 12f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(25, 40, 75),
-                Location  = new Point(12, 14),
-                Size      = new Size(162, 50),
+                Location  = new Point(14, 14),
+                Size      = new Size(172, 52),
                 BackColor = Color.Transparent
             };
 
             var lblTipo = new Label
             {
                 Text      = Evento.Tipo,
-                Font      = new Font("Segoe UI", 9f),
+                Font      = new Font("Segoe UI", 9.2f),
                 ForeColor = baseColor,
-                Location  = new Point(12, 66),
+                Location  = new Point(14, 69),
                 AutoSize  = true,
                 BackColor = Color.Transparent
             };
@@ -88,7 +92,7 @@ namespace GestionEventos
                 Text      = "📅  " + Evento.FechaFormateada,
                 Font      = new Font("Segoe UI", 9f),
                 ForeColor = Color.FromArgb(80, 95, 120),
-                Location  = new Point(12, 88),
+                Location  = new Point(14, 92),
                 AutoSize  = true,
                 BackColor = Color.Transparent
             };
@@ -108,7 +112,7 @@ namespace GestionEventos
                 Text      = diasStr,
                 Font      = new Font("Segoe UI", 9f, FontStyle.Bold),
                 ForeColor = diasColor,
-                Location  = new Point(12, 110),
+                Location  = new Point(14, 116),
                 AutoSize  = true,
                 BackColor = Color.Transparent
             };
@@ -116,8 +120,8 @@ namespace GestionEventos
             var btnEditar = new Button
             {
                 Text      = "✏️  Editar evento",
-                Size      = new Size(211, 32),
-                Location  = new Point(12, 148),
+                Size      = new Size(222, 34),
+                Location  = new Point(14, 156),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = baseColor,
                 ForeColor = Color.White,
@@ -126,15 +130,62 @@ namespace GestionEventos
             };
             btnEditar.FlatAppearance.BorderSize = 0;
             btnEditar.Click += (_, __) => SolicitarEdicion?.Invoke(Evento);
+            btnEditar.MouseEnter += (_, __) => btnEditar.BackColor = ControlPaint.Dark(baseColor, 0.08f);
+            btnEditar.MouseLeave += (_, __) => btnEditar.BackColor = baseColor;
 
-            Paint += (s, e) =>
+            MouseEnter += (_, __) => { _hover = true; Invalidate(); };
+            MouseLeave += (_, __) => { _hover = false; Invalidate(); };
+            foreach (Control c in new Control[]
+                { pnlTop, lblNombre, lblTipo, lblFecha, lblDias, lblEmoji, btnEditar })
             {
-                using var pen = new Pen(Color.FromArgb(210, 220, 235), 1.5f);
-                e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
-            };
+                c.MouseEnter += (_, __) => { _hover = true; Invalidate(); };
+                c.MouseLeave += (_, __) =>
+                {
+                    if (!ClientRectangle.Contains(PointToClient(MousePosition)))
+                    {
+                        _hover = false;
+                        Invalidate();
+                    }
+                };
+            }
 
             Controls.AddRange(new Control[]
                 { pnlTop, lblNombre, lblTipo, lblFecha, lblDias, lblEmoji, btnEditar });
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var cardRect = new Rectangle(2, _hover ? 1 : 3, Width - 8, Height - 8);
+            var shadowRect = new Rectangle(5, _hover ? 4 : 6, Width - 8, Height - 8);
+
+            using (var shadowPath = Rounded(shadowRect, 16))
+            using (var shadowBrush = new SolidBrush(Color.FromArgb(_hover ? 40 : 28, 17, 38, 75)))
+                e.Graphics.FillPath(shadowBrush, shadowPath);
+
+            using (var cardPath = Rounded(cardRect, 16))
+            using (var bgBrush = new SolidBrush(Color.White))
+            using (var borderPen = new Pen(_hover
+                ? Color.FromArgb(150, 196, 220, 255)
+                : Color.FromArgb(210, 220, 235), 1.6f))
+            {
+                e.Graphics.FillPath(bgBrush, cardPath);
+                e.Graphics.DrawPath(borderPen, cardPath);
+            }
+        }
+
+        private static GraphicsPath Rounded(Rectangle rect, int radius)
+        {
+            int d = radius * 2;
+            var path = new GraphicsPath();
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+            path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
         }
     }
 }

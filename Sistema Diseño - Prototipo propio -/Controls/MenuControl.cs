@@ -8,15 +8,19 @@ namespace GestionEventos
     public class MenuControl : UserControl
     {
         // ── Controles ────────────────────────────────────────────────────────
-        private ComboBox  cmbEventos;
-        private ComboBox  cmbEntrada, cmbPlatilloFuerte, cmbPostre;
-        private TextBox   txtNuevaBebida;
-        private ComboBox  cmbTipoBebida;
-        private ListBox   lstBebidas;
-        private Button    btnGuardarMenu, btnAgregarBebida, btnEliminarBebida;
-        private System.Windows.Forms.Timer _timerSync;
+        private ComboBox  cmbEventos = null!;
+        private ComboBox  cmbEntrada = null!;
+        private ComboBox  cmbPlatilloFuerte = null!;
+        private ComboBox  cmbPostre = null!;
+        private TextBox   txtNuevaBebida = null!;
+        private ComboBox  cmbTipoBebida = null!;
+        private ListBox   lstBebidas = null!;
+        private Button    btnGuardarMenu = null!;
+        private Button    btnAgregarBebida = null!;
+        private Button    btnEliminarBebida = null!;
+        private System.Windows.Forms.Timer _timerSync = null!;
 
-        private string EventoActual => cmbEventos.SelectedItem?.ToString();
+        private string? EventoActual => cmbEventos.SelectedItem?.ToString();
         private Menu   _menuActual  = new Menu();
 
         // ── Catálogo de platillos ─────────────────────────────────────────────
@@ -180,7 +184,7 @@ namespace GestionEventos
             pnlBebidas.Paint += (s, e) =>
             {
                 using (var pen = new Pen(Color.FromArgb(215, 225, 245)))
-                    e.Graphics.DrawLine(pen, 0, 0, 0, ((Panel)s).Height);
+                    e.Graphics.DrawLine(pen, 0, 0, 0, ((Panel)s!).Height);
             };
 
             var lblBebTit = new Label
@@ -427,7 +431,7 @@ namespace GestionEventos
                 return;
             }
 
-            string prev = cmbEventos.SelectedItem?.ToString();
+            string? prev = cmbEventos.SelectedItem?.ToString();
             cmbEventos.SelectedIndexChanged -= CmbEventos_Changed;
             cmbEventos.Items.Clear();
 
@@ -447,7 +451,7 @@ namespace GestionEventos
             if (!silencioso) CargarMenu();
         }
 
-        private void CmbEventos_Changed(object sender, EventArgs e) => CargarMenu();
+        private void CmbEventos_Changed(object? sender, EventArgs e) => CargarMenu();
 
         private void CargarMenu()
         {
@@ -473,7 +477,7 @@ namespace GestionEventos
         }
 
         // ─── Botones ───────────────────────────────────────────────────────────
-        private void BtnGuardarMenu_Click(object sender, EventArgs e)
+        private void BtnGuardarMenu_Click(object? sender, EventArgs e)
         {
             if (EventoActual == null)
             {
@@ -504,7 +508,7 @@ namespace GestionEventos
             }
         }
 
-        private void BtnAgregarBebida_Click(object sender, EventArgs e)
+        private void BtnAgregarBebida_Click(object? sender, EventArgs e)
         {
             if (EventoActual == null)
             {
@@ -534,8 +538,15 @@ namespace GestionEventos
             CargarMenu();
         }
 
-        private void BtnEliminarBebida_Click(object sender, EventArgs e)
+        private void BtnEliminarBebida_Click(object? sender, EventArgs e)
         {
+            if (EventoActual == null)
+            {
+                MessageBox.Show("Selecciona un evento primero.", "Aviso",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             if (!(lstBebidas.SelectedItem is Bebida beb))
             {
                 MessageBox.Show("Selecciona una bebida de la lista.", "Aviso",

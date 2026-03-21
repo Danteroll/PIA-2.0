@@ -13,9 +13,7 @@ namespace GestionEventos
         private TextBox       txtNombre       = null!;
         private TextBox       txtTelefono     = null!;
         private TextBox       txtAlergias     = null!;
-        private TextBox       txtGrupo        = null!;
         private TextBox       txtBuscar       = null!;
-        private CheckBox      chkConfirmado   = null!;
         private NumericUpDown nudAcompanantes = null!;
         private ListView      lstInvitados    = null!;
         private Button        btnAgregar      = null!;
@@ -25,6 +23,8 @@ namespace GestionEventos
 
         private string? EventoActual => cmbEventos.SelectedItem?.ToString();
         private int _idSeleccionado = -1;
+        private bool _confirmadoSeleccionado;
+        private bool _updatingChecks;
 
         public InvitadosControl()
         {
@@ -101,7 +101,7 @@ namespace GestionEventos
             var pnlCampos = new Panel
             {
                 Dock        = DockStyle.Top,
-                MinimumSize = new Size(0, 120),   // garantiza alto mínimo visible
+                MinimumSize = new Size(0, 112),   // garantiza alto mínimo visible
                 AutoSize    = true,
                 AutoSizeMode= AutoSizeMode.GrowAndShrink,
                 BackColor   = Color.White,
@@ -135,12 +135,11 @@ namespace GestionEventos
             txtNombre   = MakeTxt();
             txtTelefono = MakeTxt();
             txtAlergias = MakeTxt();
-            txtGrupo    = MakeTxt();
 
             tlp.Controls.Add(MakeLbl("Nombre:"),   0, 0); tlp.Controls.Add(txtNombre,   1, 0);
             tlp.Controls.Add(MakeLbl("Teléfono:"), 2, 0); tlp.Controls.Add(txtTelefono, 3, 0);
             tlp.Controls.Add(MakeLbl("Alergias:"), 0, 1); tlp.Controls.Add(txtAlergias, 1, 1);
-            tlp.Controls.Add(MakeLbl("Grupo:"),    2, 1); tlp.Controls.Add(txtGrupo,    3, 1);
+            tlp.SetColumnSpan(txtAlergias, 3);
 
             pnlCampos.Controls.Add(tlp);
 
@@ -153,15 +152,6 @@ namespace GestionEventos
                 Height    = 68,
                 BackColor = Color.White,
                 Padding   = new Padding(20, 0, 20, 0)
-            };
-
-            chkConfirmado = new CheckBox
-            {
-                Text      = "CONFIRMADO",
-                ForeColor = Color.FromArgb(22, 148, 75),
-                Font      = new Font("Segoe UI", 10, FontStyle.Bold),
-                AutoSize  = true,
-                Cursor    = Cursors.Hand
             };
 
             var lblAcomp = new Label
@@ -201,7 +191,6 @@ namespace GestionEventos
                 BackColor     = Color.Transparent,
                 Padding       = new Padding(0, 14, 0, 0)
             };
-            chkConfirmado.Margin   = new Padding(0, 4, 18, 0);
             lblAcomp.Margin        = new Padding(0, 7, 8, 0);
             nudAcompanantes.Margin = new Padding(0, 4, 18, 0);
             btnAgregar.Margin      = new Padding(0, 2, 10, 0);
@@ -212,7 +201,7 @@ namespace GestionEventos
 
             flpCtrl.Controls.AddRange(new Control[]
             {
-                chkConfirmado, lblAcomp, nudAcompanantes,
+                lblAcomp, nudAcompanantes,
                 btnAgregar, btnEditar, btnEliminar,
                 btnImportar, btnPlantilla
             });
@@ -278,23 +267,6 @@ namespace GestionEventos
             flpBuscar.Controls.Add(txtBuscar);
             pnlBuscar.Controls.Add(flpBuscar);
 
-            var hdrRow = new TableLayoutPanel
-            {
-                Dock        = DockStyle.Top,
-                Height      = 26,
-                ColumnCount = 4,
-                BackColor   = Color.FromArgb(245, 248, 255),
-                Padding     = new Padding(8, 2, 8, 2)
-            };
-            hdrRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38));
-            hdrRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
-            hdrRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18));
-            hdrRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22));
-            hdrRow.Controls.Add(MakeHdr("Nombre"),   0, 0);
-            hdrRow.Controls.Add(MakeHdr("Teléfono"), 1, 0);
-            hdrRow.Controls.Add(MakeHdr("Alergias"), 2, 0);
-            hdrRow.Controls.Add(MakeHdr("Grupo"),    3, 0);
-
             lstInvitados = new ListView
             {
                 Dock          = DockStyle.Fill,
@@ -302,16 +274,16 @@ namespace GestionEventos
                 BorderStyle   = BorderStyle.FixedSingle,
                 View          = View.Details,
                 FullRowSelect = true,
-                HideSelection = false
+                HideSelection = false,
+                CheckBoxes    = true
             };
             lstInvitados.Columns.Add("Nombre",   260);
             lstInvitados.Columns.Add("Teléfono", 150);
             lstInvitados.Columns.Add("Alergias", 90);
-            lstInvitados.Columns.Add("Grupo",    160);
             lstInvitados.SelectedIndexChanged += LstInvitados_Changed;
+            lstInvitados.ItemChecked += LstInvitados_ItemChecked;
 
             pnlLista.Controls.Add(lstInvitados);
-            pnlLista.Controls.Add(hdrRow);
             pnlLista.Controls.Add(pnlBuscar);
             pnlLista.Resize += (_, __) => AjustarLista();
 
@@ -360,16 +332,6 @@ namespace GestionEventos
             return b;
         }
 
-        private static Label MakeHdr(string txt) =>
-            new Label
-            {
-                Text      = txt,
-                Dock      = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Font      = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(60, 75, 110)
-            };
-
         // ─── Timer ─────────────────────────────────────────────────────────────
         private void IniciarTimer()
         {
@@ -410,8 +372,13 @@ namespace GestionEventos
 
         private void CargarLista()
         {
+            _updatingChecks = true;
             lstInvitados.Items.Clear();
-            if (EventoActual == null) return;
+            if (EventoActual == null)
+            {
+                _updatingChecks = false;
+                return;
+            }
 
             string filtro = txtBuscar.Text.Trim().ToLowerInvariant();
             var todos = DatabaseManager.GetInvitados(EventoActual);
@@ -419,20 +386,27 @@ namespace GestionEventos
             foreach (var inv in todos.Where(i =>
                 string.IsNullOrEmpty(filtro) ||
                 i.Nombre.ToLowerInvariant().Contains(filtro) ||
-                i.Grupo.ToLowerInvariant().Contains(filtro)))
+                i.Telefono.ToLowerInvariant().Contains(filtro)))
             {
+                // Evita mostrar una fila importada accidentalmente como encabezado.
+                if (string.Equals(inv.Nombre.Trim(), "nombre", StringComparison.OrdinalIgnoreCase) &&
+                    (string.Equals(inv.Telefono.Trim(), "teléfono", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(inv.Telefono.Trim(), "telefono", StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
                 string alergias =
                     string.IsNullOrWhiteSpace(inv.Alergias) ||
                     string.Equals(inv.Alergias.Trim(), "ninguna", StringComparison.OrdinalIgnoreCase)
                         ? "No" : "Sí";
 
-                var item = new ListViewItem(inv.Nombre + (inv.Confirmado ? "  ✓" : ""))
+                var item = new ListViewItem(inv.Nombre)
                     { Tag = inv };
                 item.SubItems.Add(inv.Telefono);
                 item.SubItems.Add(alergias);
-                item.SubItems.Add(inv.Grupo);
+                item.Checked = inv.Confirmado;
                 lstInvitados.Items.Add(item);
             }
+            _updatingChecks = false;
             AjustarLista();
         }
 
@@ -447,10 +421,19 @@ namespace GestionEventos
                 txtNombre.Text        = inv.Nombre;
                 txtTelefono.Text      = inv.Telefono;
                 txtAlergias.Text      = inv.Alergias;
-                txtGrupo.Text         = inv.Grupo;
-                chkConfirmado.Checked = inv.Confirmado;
+                _confirmadoSeleccionado = inv.Confirmado;
                 nudAcompanantes.Value = inv.Acompanantes;
             }
+        }
+
+        private void LstInvitados_ItemChecked(object? sender, ItemCheckedEventArgs e)
+        {
+            if (_updatingChecks || EventoActual == null) return;
+            if (e.Item.Tag is not Invitado inv) return;
+
+            inv.Confirmado = e.Item.Checked;
+            _confirmadoSeleccionado = inv.Confirmado;
+            DatabaseManager.EditarInvitado(EventoActual, inv);
         }
 
         private void LimpiarFormulario()
@@ -459,8 +442,8 @@ namespace GestionEventos
             txtNombre.Text        =
             txtTelefono.Text      =
             txtAlergias.Text      =
-            txtGrupo.Text         = "";
-            chkConfirmado.Checked = false;
+            "";
+            _confirmadoSeleccionado = false;
             nudAcompanantes.Value = 0;
             lstInvitados.SelectedItems.Clear();
         }
@@ -470,8 +453,8 @@ namespace GestionEventos
             Nombre       = txtNombre.Text.Trim(),
             Telefono     = txtTelefono.Text.Trim(),
             Alergias     = txtAlergias.Text.Trim(),
-            Grupo        = txtGrupo.Text.Trim(),
-            Confirmado   = chkConfirmado.Checked,
+            Grupo        = "",
+            Confirmado   = _confirmadoSeleccionado,
             Acompanantes = (int)nudAcompanantes.Value
         };
 
@@ -608,6 +591,7 @@ namespace GestionEventos
                 MessageBox.Show(
                     "Plantilla guardada.\n\n" +
                     "Columnas: Nombre | Teléfono | Grupo | Alergias | Confirmado\n\n" +
+                    "• El campo Grupo se ignora en la app actual\n" +
                     "• 'Confirmado' acepta: Sí / No / 1 / 0\n" +
                     "• Solo 'Nombre' es obligatorio",
                     "Plantilla lista", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -625,11 +609,10 @@ namespace GestionEventos
             if (lstInvitados == null) return;
 
             int total = lstInvitados.ClientSize.Width;
-            if (total <= 0 || lstInvitados.Columns.Count != 4) return;
-            lstInvitados.Columns[0].Width = (int)(total * 0.38);
-            lstInvitados.Columns[1].Width = (int)(total * 0.22);
-            lstInvitados.Columns[2].Width = (int)(total * 0.18);
-            lstInvitados.Columns[3].Width = (int)(total * 0.22);
+            if (total <= 0 || lstInvitados.Columns.Count != 3) return;
+            lstInvitados.Columns[0].Width = (int)(total * 0.46);
+            lstInvitados.Columns[1].Width = (int)(total * 0.30);
+            lstInvitados.Columns[2].Width = (int)(total * 0.24);
         }
     }
 }
