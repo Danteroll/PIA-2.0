@@ -42,6 +42,7 @@ namespace GestionEventos
                         Fecha  TEXT NOT NULL
                     )";
                 cmd.ExecuteNonQuery();
+
             }
         }
 
@@ -123,22 +124,31 @@ namespace GestionEventos
                         Nombre TEXT NOT NULL,
                         Tipo   TEXT NOT NULL DEFAULT 'Otra'
                     )",
-                   @"CREATE TABLE IF NOT EXISTS Platillos (
-                        Id     INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Nombre TEXT NOT NULL,
-                        Tipo   TEXT NOT NULL DEFAULT 'Otro'
+
+                    // ─── NUEVAS TABLAS PARA ALERGIAS E INGREDIENTES ───
+                    @"CREATE TABLE IF NOT EXISTS Alergias (
+                        IdAlergia         INTEGER PRIMARY KEY AUTOINCREMENT,
+                        NombreIngrediente TEXT NOT NULL
+                    )",
+                    @"CREATE TABLE IF NOT EXISTS Invitado_Alergia (
+                        IdInvitado INTEGER,
+                        IdAlergia  INTEGER,
+                        FOREIGN KEY(IdInvitado) REFERENCES Invitados(Id),
+                        FOREIGN KEY(IdAlergia)  REFERENCES Alergias(IdAlergia)
+                    )",
+                    @"CREATE TABLE IF NOT EXISTS Platillos (
+                        IdPlatillo INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Nombre     TEXT NOT NULL
                     )",
                     @"CREATE TABLE IF NOT EXISTS Ingredientes (
-                        Id     INTEGER PRIMARY KEY AUTOINCREMENT,
-                        Nombre TEXT NOT NULL UNIQUE
+                        IdIngrediente INTEGER PRIMARY KEY AUTOINCREMENT,
+                        Nombre        TEXT NOT NULL
                     )",
-                    @"CREATE TABLE IF NOT EXISTS PlatilloIngrediente (
-                        Id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                        PlatilloId    INTEGER NOT NULL,
-                        IngredienteId INTEGER NOT NULL,
-                        FOREIGN KEY(PlatilloId) REFERENCES Platillos(Id),
-                        FOREIGN KEY(IngredienteId) REFERENCES Ingredientes(Id),
-                        UNIQUE(PlatilloId, IngredienteId)
+                    @"CREATE TABLE IF NOT EXISTS Platillo_Ingrediente (
+                        IdPlatillo    INTEGER,
+                        IdIngrediente INTEGER,
+                        FOREIGN KEY(IdPlatillo)    REFERENCES Platillos(IdPlatillo),
+                        FOREIGN KEY(IdIngrediente) REFERENCES Ingredientes(IdIngrediente)
                     )"
                 };
                 foreach (var sql in tablas)
@@ -176,16 +186,33 @@ namespace GestionEventos
                 using (var r = cmd.ExecuteReader())
                 {
                     while (r.Read())
+                    {
+                
+                        string stringAlergias = r.IsDBNull(3) ? "" : r.GetString(3);
+                        
+                       
+                        var listaAlergiasObj = new List<Alergia>();
+                        if (!string.IsNullOrWhiteSpace(stringAlergias))
+                        {
+                            foreach (var item in stringAlergias.Split(','))
+                            {
+                                listaAlergiasObj.Add(new Alergia { NombreIngrediente = item.Trim() });
+                            }
+                        }
+
+                    
                         lista.Add(new Invitado
                         {
                             Id           = r.GetInt32(0),
                             Nombre       = r.GetString(1),
                             Telefono     = r.IsDBNull(2) ? "" : r.GetString(2),
-                            Alergias     = r.IsDBNull(3) ? "" : r.GetString(3),
+                            AlergiasText = stringAlergias, 
+                            Alergias     = listaAlergiasObj, // Aquí está la magia que conecta con tu tabla
                             Grupo        = r.IsDBNull(4) ? "" : r.GetString(4),
                             Confirmado   = r.GetInt32(5) == 1,
                             Acompanantes = r.GetInt32(6)
                         });
+                    }
                 }
             }
             return lista;
@@ -194,38 +221,133 @@ namespace GestionEventos
         public static void AgregarInvitado(string eventoNombre, Invitado inv)
         {
             using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
-            using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText =
-                    "INSERT INTO Invitados " +
-                    "(Nombre,Telefono,Alergias,Grupo,Confirmado,Acompanantes) " +
-                    "VALUES (@n,@t,@a,@g,@c,@ac)";
-                cmd.Parameters.AddWithValue("@n",  inv.Nombre);
-                cmd.Parameters.AddWithValue("@t",  inv.Telefono);
-                cmd.Parameters.AddWithValue("@a",  inv.Alergias);
-                cmd.Parameters.AddWithValue("@g",  inv.Grupo);
-                cmd.Parameters.AddWithValue("@c",  inv.Confirmado ? 1 : 0);
-                cmd.Parameters.AddWithValue("@ac", inv.Acompanantes);
-                cmd.ExecuteNonQuery();
+                
+                string textoAlergias = "";
+                
+                if (inv.Alergias != null)
+                {
+                    
+                    if (inv.Alergias is System.Collections.IEnumerable lista && !(inv.Alergias is string))
+                    {
+                        var nombres = new System.Collections.Generic.List<string>();
+                        foreach (dynamic obj in lista)
+                        {
+                            
+                            try { nombres.Add(obj.NombreIngrediente); } 
+                            catch { try { nombres.Add(obj.Nombre); } catch { nombres.Add(obj.ToString()); } }
+                        }
+                        textoAlergias = string.Join(", ", nombres);
+                    }
+                    else
+                    {
+                        
+                        textoAlergias = inv.Alergias.ToString();
+                    }
+                }
+
+            
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = 
+                        "INSERT INTO Invitados " +
+                        "(Nombre, Telefono, Alergias, Grupo, Confirmado, Acompanantes) " +
+                        "VALUES (@n, @t, @a, @g, @c, @ac)";
+                    
+                    cmd.Parameters.AddWithValue("@n", inv.Nombre ?? "");
+                    cmd.Parameters.AddWithValue("@t", inv.Telefono ?? "");
+                    
+               
+                    cmd.Parameters.AddWithValue("@a", textoAlergias); 
+                    
+                    cmd.Parameters.AddWithValue("@g", inv.Grupo ?? "");
+                    cmd.Parameters.AddWithValue("@c", inv.Confirmado ? 1 : 0);
+                    cmd.Parameters.AddWithValue("@ac", inv.Acompanantes);
+                    cmd.ExecuteNonQuery();
+                }
+
+                // 3. Obtenemos el número (ID) del invitado que acabamos de guardar
+                int idNuevoInvitado = 0;
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT last_insert_rowid()";
+                    idNuevoInvitado = Convert.ToInt32(cmd.ExecuteScalar());
+                }
+
+                
+                if (!string.IsNullOrWhiteSpace(textoAlergias))
+                {
+                    string[] partes = textoAlergias.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    foreach (string parte in partes)
+                    {
+                        string limpia = parte.Trim().ToLower();
+                        if (limpia != "" && limpia != "ninguna" && limpia != "no")
+                        {
+
+                            int idAlergia = AgregarAlergia(eventoNombre, limpia);
+                            AsignarAlergiaAInvitado(eventoNombre, idNuevoInvitado, idAlergia);
+                        }
+                    }
+                }
             }
         }
 
         public static void EditarInvitado(string eventoNombre, Invitado inv)
         {
             using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
-            using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText =
-                    "UPDATE Invitados SET Nombre=@n,Telefono=@t,Alergias=@a," +
-                    "Grupo=@g,Confirmado=@c,Acompanantes=@ac WHERE Id=@id";
-                cmd.Parameters.AddWithValue("@n",  inv.Nombre);
-                cmd.Parameters.AddWithValue("@t",  inv.Telefono);
-                cmd.Parameters.AddWithValue("@a",  inv.Alergias);
-                cmd.Parameters.AddWithValue("@g",  inv.Grupo);
-                cmd.Parameters.AddWithValue("@c",  inv.Confirmado ? 1 : 0);
-                cmd.Parameters.AddWithValue("@ac", inv.Acompanantes);
-                cmd.Parameters.AddWithValue("@id", inv.Id);
-                cmd.ExecuteNonQuery();
+                
+                string textoAlergias = "";
+                if (inv.Alergias != null)
+                {
+                    if (inv.Alergias is System.Collections.IEnumerable lista && !(inv.Alergias is string))
+                    {
+                        var nombres = new System.Collections.Generic.List<string>();
+                        foreach (dynamic obj in lista)
+                        {
+                            try { nombres.Add(obj.NombreIngrediente); } 
+                            catch { try { nombres.Add(obj.Nombre); } catch { nombres.Add(obj.ToString()); } }
+                        }
+                        textoAlergias = string.Join(", ", nombres);
+                    }
+                    else { textoAlergias = inv.Alergias.ToString(); }
+                }
+
+                
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = 
+                        "UPDATE Invitados SET Nombre=@n, Telefono=@t, Alergias=@a, Grupo=@g, Confirmado=@c, Acompanantes=@ac WHERE Id=@id";
+                    cmd.Parameters.AddWithValue("@id", inv.Id);
+                    cmd.Parameters.AddWithValue("@n", inv.Nombre ?? "");
+                    cmd.Parameters.AddWithValue("@t", inv.Telefono ?? "");
+                    cmd.Parameters.AddWithValue("@a", textoAlergias); // <-- Aquí está la corrección
+                    cmd.Parameters.AddWithValue("@g", inv.Grupo ?? "");
+                    cmd.Parameters.AddWithValue("@c", inv.Confirmado ? 1 : 0);
+                    cmd.Parameters.AddWithValue("@ac", inv.Acompanantes);
+                    cmd.ExecuteNonQuery();
+                }
+
+                
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "DELETE FROM Invitado_Alergia WHERE IdInvitado = @id";
+                    cmd.Parameters.AddWithValue("@id", inv.Id);
+                    cmd.ExecuteNonQuery();
+                }
+
+                if (!string.IsNullOrWhiteSpace(textoAlergias))
+                {
+                    foreach (string parte in textoAlergias.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        string limpia = parte.Trim().ToLower();
+                        if (limpia != "" && limpia != "ninguna" && limpia != "no")
+                        {
+                            int idAlergia = AgregarAlergia(eventoNombre, limpia);
+                            AsignarAlergiaAInvitado(eventoNombre, inv.Id, idAlergia);
+                        }
+                    }
+                }
             }
         }
 
@@ -311,6 +433,30 @@ namespace GestionEventos
                     cmd.CommandText = "SELECT COALESCE(MAX(Numero), 0) + 1 FROM Mesas";
                     numero = Convert.ToInt32(cmd.ExecuteScalar());
                 }
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText =
+                        "INSERT INTO Mesas (Numero,Capacidad,PosX,PosY) " +
+                        "VALUES (@n,@c,@x,@y)";
+                    cmd.Parameters.AddWithValue("@n", numero);
+                    cmd.Parameters.AddWithValue("@c", capacidad);
+                    cmd.Parameters.AddWithValue("@x", posX);
+                    cmd.Parameters.AddWithValue("@y", posY);
+                    cmd.ExecuteNonQuery();
+                }
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT last_insert_rowid()";
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
+            }
+        }
+
+        public static int AgregarMesaConNumero(
+            string eventoNombre, int numero, int capacidad, int posX, int posY)
+        {
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            {
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText =
@@ -457,9 +603,9 @@ namespace GestionEventos
                         if (r.Read())
                         {
                             menu.Id             = r.GetInt32(0);
-                            menu.Entrada        = r.IsDBNull(1) ? "" : r.GetString(1);
-                            menu.PlatilloFuerte = r.IsDBNull(2) ? "" : r.GetString(2);
-                            menu.Postre         = r.IsDBNull(3) ? "" : r.GetString(3);
+                            menu.Entrada        = new Platillo { Nombre = r.IsDBNull(1) ? "" : r.GetString(1) };
+                            menu.PlatilloFuerte = new Platillo { Nombre = r.IsDBNull(2) ? "" : r.GetString(2) };
+                            menu.Postre         = new Platillo { Nombre = r.IsDBNull(3) ? "" : r.GetString(3) };
                         }
                     }
                 }
@@ -514,9 +660,9 @@ namespace GestionEventos
                             "INSERT INTO Menu (Entrada, PlatilloFuerte, Postre) " +
                             "VALUES (@e, @p, @po)";
                     }
-                    cmd.Parameters.AddWithValue("@e",  menu.Entrada);
-                    cmd.Parameters.AddWithValue("@p",  menu.PlatilloFuerte);
-                    cmd.Parameters.AddWithValue("@po", menu.Postre);
+                    cmd.Parameters.AddWithValue("@e",  menu.Entrada?.Nombre ?? "");
+                    cmd.Parameters.AddWithValue("@p",  menu.PlatilloFuerte?.Nombre ?? "");
+                    cmd.Parameters.AddWithValue("@po", menu.Postre?.Nombre ?? "");
                     cmd.ExecuteNonQuery();
                 }
             }
@@ -551,7 +697,8 @@ namespace GestionEventos
         }
 
         /// <summary>
-        /// Crea las tablas Menu y Bebidas en bases de datos antiguas que no las tengan.
+        /// Crea las tablas Menu, Bebidas, Alergias, Ingredientes y sus relaciones 
+        /// en bases de datos antiguas que no las tengan.
         /// </summary>
         private static void EnsureMenuTables(SqliteConnection conn)
         {
@@ -567,8 +714,34 @@ namespace GestionEventos
                     Id     INTEGER PRIMARY KEY AUTOINCREMENT,
                     Nombre TEXT NOT NULL,
                     Tipo   TEXT NOT NULL DEFAULT 'Otra'
+                )",
+                // ─── NUEVAS TABLAS ───
+                @"CREATE TABLE IF NOT EXISTS Alergias (
+                    IdAlergia         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    NombreIngrediente TEXT NOT NULL
+                )",
+                @"CREATE TABLE IF NOT EXISTS Invitado_Alergia (
+                    IdInvitado INTEGER,
+                    IdAlergia  INTEGER,
+                    FOREIGN KEY(IdInvitado) REFERENCES Invitados(Id),
+                    FOREIGN KEY(IdAlergia)  REFERENCES Alergias(IdAlergia)
+                )",
+                @"CREATE TABLE IF NOT EXISTS Platillos (
+                    IdPlatillo INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Nombre     TEXT NOT NULL
+                )",
+                @"CREATE TABLE IF NOT EXISTS Ingredientes (
+                    IdIngrediente INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Nombre        TEXT NOT NULL
+                )",
+                @"CREATE TABLE IF NOT EXISTS Platillo_Ingrediente (
+                    IdPlatillo    INTEGER,
+                    IdIngrediente INTEGER,
+                    FOREIGN KEY(IdPlatillo)    REFERENCES Platillos(IdPlatillo),
+                    FOREIGN KEY(IdIngrediente) REFERENCES Ingredientes(IdIngrediente)
                 )"
             };
+
             foreach (var sql in sqls)
             {
                 using (var cmd = conn.CreateCommand())
@@ -578,138 +751,315 @@ namespace GestionEventos
                 }
             }
         }
-        private static void EnsurePlatilloTables(SqliteConnection conn)
+
+        // ─── ALERGIAS E INGREDIENTES ───────────────────────────────────────────
+
+        public static List<Alergia> ObtenerAlergiasDeInvitado(string eventoNombre, int idInvitado)
         {
-            var sqls = new[]
+            var lista = new List<Alergia>();
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            using (var cmd = conn.CreateCommand())
             {
-                @"CREATE TABLE IF NOT EXISTS Platillos (
-                Id     INTEGER PRIMARY KEY AUTOINCREMENT,
-                Nombre TEXT NOT NULL,
-                Tipo   TEXT NOT NULL DEFAULT 'Otro'
-                )",
-                @"CREATE TABLE IF NOT EXISTS Ingredientes (
-                Id     INTEGER PRIMARY KEY AUTOINCREMENT,
-                Nombre TEXT NOT NULL UNIQUE
-                )",
-                @"CREATE TABLE IF NOT EXISTS PlatilloIngrediente (
-                Id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                PlatilloId    INTEGER NOT NULL,
-                IngredienteId INTEGER NOT NULL,
-                FOREIGN KEY(PlatilloId) REFERENCES Platillos(Id),
-                FOREIGN KEY(IngredienteId) REFERENCES Ingredientes(Id)
-                )"
-            };
-
-            foreach (var sql in sqls)
-            {
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = sql;
-                cmd.ExecuteNonQuery();
-            }
-        }
-        public static int AgregarPlatillo(string eventoNombre, Platillo platillo)
-        {
-            using var conn = AbrirConexion(GetEventDbPath(eventoNombre));
-            EnsurePlatilloTables(conn);
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"INSERT INTO Platillos (Nombre, Tipo)
-                        VALUES (@nombre, @tipo);
-                        SELECT last_insert_rowid();";
-
-            cmd.Parameters.AddWithValue("@nombre", platillo.Nombre);
-            cmd.Parameters.AddWithValue("@tipo", platillo.Tipo);
-
-            return Convert.ToInt32(cmd.ExecuteScalar());
-        }
-        public static List<Platillo> ObtenerPlatillos(string eventoNombre)
-        {
-            var lista = new List<Platillo>();
-
-            using var conn = AbrirConexion(GetEventDbPath(eventoNombre));
-            EnsurePlatilloTables(conn);
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"SELECT Id, Nombre, Tipo
-                        FROM Platillos
-                        ORDER BY Tipo, Nombre";
-
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
-            {
-                lista.Add(new Platillo
+                cmd.CommandText = @"
+                    SELECT a.IdAlergia, a.NombreIngrediente 
+                    FROM Alergias a
+                    INNER JOIN Invitado_Alergia ia ON a.IdAlergia = ia.IdAlergia
+                    WHERE ia.IdInvitado = @id";
+                
+                cmd.Parameters.AddWithValue("@id", idInvitado);
+                
+                using (var r = cmd.ExecuteReader())
                 {
-                    Id = reader.GetInt32(0),
-                    Nombre = reader.GetString(1),
-                    Tipo = reader.GetString(2)
-                });
+                    while (r.Read())
+                    {
+                        lista.Add(new Alergia
+                        {
+                            IdAlergia = r.GetInt32(0),
+                            NombreIngrediente = r.GetString(1)
+                        });
+                    }
+                }
             }
-
             return lista;
         }
-        public static int AgregarIngrediente(string eventoNombre, string nombreIngrediente)
+
+        // ─── GUARDAR Y VINCULAR ALERGIAS ───────────────────────────────────────
+
+        /// <summary>Guarda una nueva alergia en el catálogo y devuelve su ID.</summary>
+        public static int AgregarAlergia(string eventoNombre, string nombreIngrediente)
         {
-            using var conn = AbrirConexion(GetEventDbPath(eventoNombre));
-            EnsurePlatilloTables(conn);
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            {
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "INSERT INTO Alergias (NombreIngrediente) VALUES (@n)";
+                    cmd.Parameters.AddWithValue("@n", nombreIngrediente);
+                    cmd.ExecuteNonQuery();
+                }
+                // Obtenemos el ID que SQLite le acaba de asignar
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT last_insert_rowid()";
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
+            }
+        }
+
+        /// <summary>Vincula una alergia existente con un invitado.</summary>
+        public static void AsignarAlergiaAInvitado(string eventoNombre, int idInvitado, int idAlergia)
+        {
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = 
+                    "INSERT INTO Invitado_Alergia (IdInvitado, IdAlergia) VALUES (@idInv, @idAle)";
+                cmd.Parameters.AddWithValue("@idInv", idInvitado);
+                cmd.Parameters.AddWithValue("@idAle", idAlergia);
+                cmd.ExecuteNonQuery();
+            }
+        }
+        /// <summary>Obtiene una lista con todas las alergias de todos los invitados del evento.</summary>
+        public static List<string> ObtenerAlergiasDelEvento(string eventoNombre)
+        {
+            var alergias = new List<string>();
+            if (string.IsNullOrEmpty(eventoNombre)) return alergias;
+
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            {
+                try 
+                {
+                    using (var cmd = conn.CreateCommand()) 
+                    {
+                        
+                        cmd.CommandText = @"
+                            SELECT DISTINCT a.NombreIngrediente 
+                            FROM Alergias a
+                            INNER JOIN Invitado_Alergia ia ON a.IdAlergia = ia.IdAlergia";
+                        
+                        using (var r = cmd.ExecuteReader()) 
+                        {
+                            while (r.Read()) 
+                            {
+                                string alergia = r.GetString(0).Trim().ToLower();
+                                if (!string.IsNullOrEmpty(alergia))
+                                {
+                                    alergias.Add(alergia);
+                                }
+                            }
+                        }
+                    }
+                } 
+                catch { /* Si no hay invitados con alergias registradas aún, no pasa nada */ }
+            }
+            return alergias;
+        }
+        
+        private static int ObtenerOCrearPlatilloId(SqliteConnection conn, string nombrePlatillo)
+        {
 
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"INSERT OR IGNORE INTO Ingredientes (Nombre)
-                            VALUES (@nombre)";
-                cmd.Parameters.AddWithValue("@nombre", nombreIngrediente.Trim());
+                cmd.CommandText = "SELECT IdPlatillo FROM Platillos WHERE Nombre = @n LIMIT 1";
+                cmd.Parameters.AddWithValue("@n", nombrePlatillo);
+                var result = cmd.ExecuteScalar();
+                if (result != null) return Convert.ToInt32(result);
+            }
+
+
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "INSERT INTO Platillos (Nombre) VALUES (@n)";
+                cmd.Parameters.AddWithValue("@n", nombrePlatillo);
                 cmd.ExecuteNonQuery();
             }
 
+
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"SELECT Id FROM Ingredientes
-                            WHERE Nombre = @nombre";
-                cmd.Parameters.AddWithValue("@nombre", nombreIngrediente.Trim());
-
-                var result = cmd.ExecuteScalar();
-                return Convert.ToInt32(result);
+                cmd.CommandText = "SELECT last_insert_rowid()";
+                return Convert.ToInt32(cmd.ExecuteScalar());
             }
         }
-        public static void AsignarIngredienteAPlatillo(string eventoNombre, int platilloId, int ingredienteId)
-        {
-            using var conn = AbrirConexion(GetEventDbPath(eventoNombre));
-            EnsurePlatilloTables(conn);
 
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"INSERT OR IGNORE INTO PlatilloIngrediente (PlatilloId, IngredienteId)
-                    VALUES (@platilloId, @ingredienteId)";
-            cmd.Parameters.AddWithValue("@platilloId", platilloId);
-            cmd.Parameters.AddWithValue("@ingredienteId", ingredienteId);
-            cmd.ExecuteNonQuery();
-        }
-        public static List<Ingrediente> ObtenerIngredientesDePlatillo(string eventoNombre, int platilloId)
+
+        public static List<Ingrediente> ObtenerIngredientesDePlatillo(string eventoNombre, string nombrePlatillo)
         {
             var lista = new List<Ingrediente>();
-
-            using var conn = AbrirConexion(GetEventDbPath(eventoNombre));
-            EnsurePlatilloTables(conn);
-
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"
-                SELECT i.Id, i.Nombre
-                FROM Ingredientes i
-                INNER JOIN PlatilloIngrediente pi ON pi.IngredienteId = i.Id
-                WHERE pi.PlatilloId = @platilloId
-                ORDER BY i.Nombre";
-
-            cmd.Parameters.AddWithValue("@platilloId", platilloId);
-
-            using var reader = cmd.ExecuteReader();
-            while (reader.Read())
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            using (var cmd = conn.CreateCommand())
             {
-                lista.Add(new Ingrediente
+                cmd.CommandText = @"
+                    SELECT i.IdIngrediente, i.Nombre 
+                    FROM Ingredientes i
+                    INNER JOIN Platillo_Ingrediente pi ON i.IdIngrediente = pi.IdIngrediente
+                    INNER JOIN Platillos p ON p.IdPlatillo = pi.IdPlatillo
+                    WHERE p.Nombre = @nombre";
+                
+                cmd.Parameters.AddWithValue("@nombre", nombrePlatillo);
+                
+                using (var r = cmd.ExecuteReader())
                 {
-                    Id = reader.GetInt32(0),
-                    Nombre = reader.GetString(1)
-                });
+                    while (r.Read())
+                    {
+                        lista.Add(new Ingrediente
+                        {
+                            IdIngrediente = r.GetInt32(0),
+                            Nombre = r.GetString(1)
+                        });
+                    }
+                }
             }
-
             return lista;
         }
+
+        /// <summary>Guarda un nuevo ingrediente en el catálogo y devuelve su ID.</summary>
+        public static int AgregarIngrediente(string eventoNombre, string nombre)
+        {
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            {
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "INSERT INTO Ingredientes (Nombre) VALUES (@n)";
+                    cmd.Parameters.AddWithValue("@n", nombre);
+                    cmd.ExecuteNonQuery();
+                }
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT last_insert_rowid()";
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
+            }
+        }
+
+        public static void AsignarIngredienteAPlatillo(string eventoNombre, string nombrePlatillo, int idIng)
+        {
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            {
+               
+                int idPlatillo = ObtenerOCrearPlatilloId(conn, nombrePlatillo);
+
+            
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = 
+                        "INSERT OR IGNORE INTO Platillo_Ingrediente (IdPlatillo, IdIngrediente) VALUES (@idPlat, @idIng)";
+                    cmd.Parameters.AddWithValue("@idPlat", idPlatillo);
+                    cmd.Parameters.AddWithValue("@idIng", idIng);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+        // ─── CATÁLOGO Y TIPO DE PLATILLOS ───
+        public static List<string> ObtenerCatalogoPlatillos(string eventoNombre, string tipoPlatillo)
+        {
+            var lista = new List<string> { "— Selecciona un platillo —" };
+            if (string.IsNullOrEmpty(eventoNombre)) return lista;
+
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            {
+                EnsureMenuTables(conn);
+                
+                
+                try {
+                    using (var cmd = conn.CreateCommand()) {
+                        cmd.CommandText = "ALTER TABLE Platillos ADD COLUMN Tipo TEXT DEFAULT 'Fuerte'";
+                        cmd.ExecuteNonQuery();
+                    }
+                } catch { /* Si la columna ya existe, ignora el error */ }
+
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+                        SELECT p.Nombre, GROUP_CONCAT(i.Nombre, ', ')
+                        FROM Platillos p
+                        LEFT JOIN Platillo_Ingrediente pi ON p.IdPlatillo = pi.IdPlatillo
+                        LEFT JOIN Ingredientes i ON pi.IdIngrediente = i.IdIngrediente
+                        WHERE p.Tipo = @tipo
+                        GROUP BY p.IdPlatillo, p.Nombre
+                        ORDER BY p.Nombre";
+                    
+                    cmd.Parameters.AddWithValue("@tipo", tipoPlatillo);
+                    
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            string nombre = r.GetString(0);
+                            string ing = r.IsDBNull(1) ? "" : r.GetString(1);
+                            lista.Add(string.IsNullOrEmpty(ing) ? nombre : $"{nombre} ({ing})");
+                        }
+                    }
+                }
+            }
+            return lista;
+        }
+
+        public static void CrearPlatillo(string eventoNombre, string nombrePlatillo, string tipo)
+        {
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            {
+                ObtenerOCrearPlatilloId(conn, nombrePlatillo, tipo);
+            }
+        }
+
+        private static int ObtenerOCrearPlatilloId(SqliteConnection conn, string nombrePlatillo, string tipo)
+        {
+            try { new SqliteCommand("ALTER TABLE Platillos ADD COLUMN Tipo TEXT DEFAULT 'Fuerte'", conn).ExecuteNonQuery(); } catch { }
+
+            using (var cmd = conn.CreateCommand()) {
+                cmd.CommandText = "SELECT IdPlatillo FROM Platillos WHERE Nombre = @n LIMIT 1";
+                cmd.Parameters.AddWithValue("@n", nombrePlatillo);
+                var result = cmd.ExecuteScalar();
+                if (result != null) return Convert.ToInt32(result);
+            }
+
+            using (var cmd = conn.CreateCommand()) {
+                cmd.CommandText = "INSERT INTO Platillos (Nombre, Tipo) VALUES (@n, @t)";
+                cmd.Parameters.AddWithValue("@n", nombrePlatillo);
+                cmd.Parameters.AddWithValue("@t", tipo);
+                cmd.ExecuteNonQuery();
+            }
+
+            using (var cmd = conn.CreateCommand()) {
+                cmd.CommandText = "SELECT last_insert_rowid()";
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }
+        }
+
+        public static void AsignarIngredienteAPlatillo(string eventoNombre, string nombrePlatillo, int idIng, string tipo)
+        {
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            {
+                int idPlatillo = ObtenerOCrearPlatilloId(conn, nombrePlatillo, tipo);
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "INSERT OR IGNORE INTO Platillo_Ingrediente (IdPlatillo, IdIngrediente) VALUES (@idPlat, @idIng)";
+                    cmd.Parameters.AddWithValue("@idPlat", idPlatillo);
+                    cmd.Parameters.AddWithValue("@idIng", idIng);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public static void EliminarPlatillo(string eventoNombre, string nombrePlatillo)
+        {
+            using (var conn = AbrirConexion(GetEventDbPath(eventoNombre)))
+            {
+                int idPlatillo = 0;
+                using (var cmd = conn.CreateCommand()) {
+                    cmd.CommandText = "SELECT IdPlatillo FROM Platillos WHERE Nombre = @n";
+                    cmd.Parameters.AddWithValue("@n", nombrePlatillo);
+                    var res = cmd.ExecuteScalar();
+                    if (res != null) idPlatillo = Convert.ToInt32(res);
+                }
+                
+                if (idPlatillo > 0) {
+                    new SqliteCommand($"DELETE FROM Platillo_Ingrediente WHERE IdPlatillo = {idPlatillo}", conn).ExecuteNonQuery();
+                    new SqliteCommand($"DELETE FROM Platillos WHERE IdPlatillo = {idPlatillo}", conn).ExecuteNonQuery();
+                }
+            }
+        }
+
     }
+
 }

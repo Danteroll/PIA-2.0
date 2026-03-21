@@ -548,8 +548,8 @@ namespace GestionEventos
                     if (mesasExistentes.Contains(mesa.Numero))
                     { erroresBD.Add($"Mesa {mesa.Numero} ya existe → omitida."); continue; }
 
-                    int mesaId = DatabaseManager.AgregarMesa(
-                        EventoActual!, mesa.Capacidad, mesa.PosX, mesa.PosY);
+                    int mesaId = DatabaseManager.AgregarMesaConNumero(
+                        EventoActual!, mesa.Numero, mesa.Capacidad, mesa.PosX, mesa.PosY);
                     mesasExistentes.Add(mesa.Numero);
                     mesasCreadas++;
 
