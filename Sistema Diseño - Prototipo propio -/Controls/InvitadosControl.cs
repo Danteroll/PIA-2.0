@@ -395,8 +395,8 @@ namespace GestionEventos
                     continue;
 
                 string alergias =
-                    string.IsNullOrWhiteSpace(inv.Alergias) ||
-                    string.Equals(inv.Alergias.Trim(), "ninguna", StringComparison.OrdinalIgnoreCase)
+                    string.IsNullOrWhiteSpace(inv.AlergiasText) ||
+                    string.Equals(inv.AlergiasText?.Trim(), "ninguna", StringComparison.OrdinalIgnoreCase)
                         ? "No" : "Sí";
 
                 var item = new ListViewItem(inv.Nombre)
@@ -420,7 +420,7 @@ namespace GestionEventos
                 _idSeleccionado       = inv.Id;
                 txtNombre.Text        = inv.Nombre;
                 txtTelefono.Text      = inv.Telefono;
-                txtAlergias.Text      = inv.Alergias;
+                txtAlergias.Text      = inv.AlergiasText;
                 _confirmadoSeleccionado = inv.Confirmado;
                 nudAcompanantes.Value = inv.Acompanantes;
             }
@@ -448,15 +448,34 @@ namespace GestionEventos
             lstInvitados.SelectedItems.Clear();
         }
 
-        private Invitado LeerFormulario() => new Invitado
+        private Invitado LeerFormulario()
         {
-            Nombre       = txtNombre.Text.Trim(),
-            Telefono     = txtTelefono.Text.Trim(),
-            Alergias     = txtAlergias.Text.Trim(),
-            Grupo        = "",
-            Confirmado   = _confirmadoSeleccionado,
-            Acompanantes = (int)nudAcompanantes.Value
-        };
+            string textoAlergias = txtAlergias.Text.Trim();
+
+            var listaAlergiasObj = new List<Alergia>();
+            if (!string.IsNullOrWhiteSpace(textoAlergias) && !string.Equals(textoAlergias, "no", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var item in textoAlergias.Split(','))
+                {
+                    string alergia = item.Trim();
+                    if (!string.IsNullOrEmpty(alergia))
+                    {
+                        listaAlergiasObj.Add(new Alergia { NombreIngrediente = alergia });
+                    }
+                }
+            }
+
+            return new Invitado
+            {
+                Nombre       = txtNombre.Text.Trim(),
+                Telefono     = txtTelefono.Text.Trim(),
+                Grupo        = "",
+                Confirmado   = _confirmadoSeleccionado,
+                Acompanantes = (int)nudAcompanantes.Value,
+                AlergiasText = textoAlergias,
+                Alergias     = listaAlergiasObj
+            };
+        }
 
         // ─── Botones CRUD ──────────────────────────────────────────────────────
         private void BtnAgregar_Click(object? sender, EventArgs e)

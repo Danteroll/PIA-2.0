@@ -21,7 +21,9 @@ namespace GestionEventos
         public int    Id           { get; set; }
         public string Nombre       { get; set; } = "";
         public string Telefono     { get; set; } = "";
-        public string Alergias     { get; set; } = "";
+        public string AlergiasText { get; set; } = ""; 
+        public List<Alergia> Alergias { get; set; } = new List<Alergia>();
+
         public string Grupo        { get; set; } = "";
         public bool   Confirmado   { get; set; }
         public int    Acompanantes { get; set; }
@@ -45,11 +47,13 @@ namespace GestionEventos
 
     public class Menu
     {
-        public int          Id             { get; set; }
-        public string       Entrada        { get; set; } = "";
-        public string       PlatilloFuerte { get; set; } = "";
-        public string       Postre         { get; set; } = "";
-        public List<Bebida> Bebidas        { get; set; } = new List<Bebida>();
+        public int            Id             { get; set; }
+        
+        public Platillo?      Entrada        { get; set; } 
+        public Platillo?      PlatilloFuerte { get; set; } 
+        public Platillo?      Postre         { get; set; } 
+        
+        public List<Bebida>   Bebidas        { get; set; } = new List<Bebida>();
     }
 
     public class Bebida
@@ -63,5 +67,25 @@ namespace GestionEventos
             string.Equals(Nombre, Tipo, StringComparison.OrdinalIgnoreCase)
                 ? Nombre
                 : $"{Nombre}  [{Tipo}]";
+    }
+
+
+    public class Alergia
+    {
+        public int    IdAlergia         { get; set; }
+        public string NombreIngrediente { get; set; } = "";
+    }
+
+    public class Platillo
+    {
+        public int               IdPlatillo   { get; set; }
+        public string            Nombre       { get; set; } = "";
+        public List<Ingrediente> Ingredientes { get; set; } = new List<Ingrediente>();
+    }
+
+    public class Ingrediente
+    {
+        public int    IdIngrediente { get; set; }
+        public string Nombre        { get; set; } = "";
     }
 }
